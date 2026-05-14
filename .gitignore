@@ -1,0 +1,11 @@
+# Do not commit secrets
+.env
+
+# Python
+__pycache__/
+.venv/
+venv/
+*.pyc
+
+# Optional
+users.db
