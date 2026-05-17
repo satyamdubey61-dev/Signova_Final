@@ -91,20 +91,29 @@ const setMsg = (el, msg, isErr = true) => {
 // SPEECH ENGINE
 // ====================================================
 const SpeechEngine = {
-    COOLDOWN_MS: 3000,
+    COOLDOWN_MS: 1200,
     STABLE_THRESHOLD: 2,
+    permissionGranted: false,
+
+    initPermission() {
+        if (this.permissionGranted || !('speechSynthesis' in window)) return;
+        const u = new SpeechSynthesisUtterance('');
+        u.volume = 0;
+        window.speechSynthesis.speak(u);
+        this.permissionGranted = true;
+    },
 
     speak(text, lang = 'en-IN', silentUpdate = false) {
         const out = $('voice-output'), wf = $('voice-waveform');
-        if (!out || !('speechSynthesis' in window)) return;
+        if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.rate = 1; u.pitch = 1; u.lang = lang;
+        u.rate = 1; u.pitch = 1; u.volume = 1; u.lang = lang;
         State.speech.speaking = true;
         if (wf) wf.classList.remove('hidden');
         u.onend = u.onerror = () => { State.speech.speaking = false; if (wf) wf.classList.add('hidden'); };
         window.speechSynthesis.speak(u);
-        if (!silentUpdate) out.textContent = text;
+        if (!silentUpdate && out) out.textContent = text;
     },
 
     tryAutoSpeak(label) {
@@ -115,7 +124,7 @@ const SpeechEngine = {
             s.lastSpoken = label;
             this.speak(label);
             if (s.cooldownTimer) clearTimeout(s.cooldownTimer);
-            s.cooldownTimer = setTimeout(() => { s.cooldown = false; }, this.COOLDOWN_MS);
+            s.cooldownTimer = setTimeout(() => { s.cooldown = false; s.lastSpoken = ''; }, this.COOLDOWN_MS);
         }
     },
 
@@ -382,12 +391,20 @@ document.addEventListener('DOMContentLoaded', () => {
     $('logout-btn')?.addEventListener('click', () => Auth.logout());
 
     // --- Recognition toggle ---
-    $('start-button')?.addEventListener('click', () => Recognition.toggle());
+    $('start-button')?.addEventListener('click', () => {
+        SpeechEngine.initPermission();
+        Recognition.toggle();
+    });
 
     // --- Play audio ---
     $('play-audio-button')?.addEventListener('click', () => {
         const t = window.lastRecognizedText;
-        if (!t || t === 'Waiting for sign input...') { const v = $('voice-output'); if (v) v.textContent = 'No sign detected yet.'; return; }
+        if (!t || t === 'Waiting for sign input...') { 
+            const v = $('voice-output'); 
+            if (v) v.textContent = 'Voice output check: Audio system is active.'; 
+            SpeechEngine.speak('Voice output check: Audio system is active.', 'en-IN', true);
+            return; 
+        }
         SpeechEngine.speak(t);
     });
 
@@ -438,13 +455,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let txt = ev.results[0][0].transcript.trim().toLowerCase();
             txt = txt.replace(/[.,!?]+$/, ''); // normalize punctuation
             if (btn) btn.textContent = `Heard: "${txt}"`;
+            SpeechEngine.speak(txt, 'en-IN', true);
             try {
                 const res = await fetch(API.textToSign, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: txt }) });
                 if (!res.ok) { showToast(`"${txt}" not found.`); $('voice-sign-image')?.classList.add('hidden'); }
                 else { 
                     const img = $('voice-sign-image'); 
                     if (img) { img.src = URL.createObjectURL(await res.blob()); img.classList.remove('hidden'); } 
-                    SpeechEngine.speak(txt, 'en-IN', true);
                 }
             } catch { showToast('Backend error.'); }
             resetBtn();
