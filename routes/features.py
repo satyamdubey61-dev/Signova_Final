@@ -1,15 +1,18 @@
 """Routes for text-to-sign and translation features."""
 import os
+import re
 import random
-from flask import Blueprint, request, jsonify, send_file
+from typing import Any, Dict, List, Optional, Tuple
 
-features_bp = Blueprint('features', __name__)
+from flask import Blueprint, Response, request, jsonify, send_file
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "Data")
+features_bp: Blueprint = Blueprint('features', __name__)
+
+BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR: str = os.path.join(BASE_DIR, "Data")
 
 # --- Translation dictionary (offline, no external API needed) ---
-TRANSLATIONS = {
+TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "hindi": {
         "hello": "नमस्ते", "thank you": "धन्यवाद", "yes": "हाँ",
         "no": "नहीं", "i love you": "मैं तुमसे प्यार करता हूँ",
@@ -45,28 +48,27 @@ TRANSLATIONS = {
 }
 
 
-def _find_sign_image(word: str):
+def _find_sign_image(word: str) -> Optional[str]:
     """Find a sample image from Data/<Word>/ folder. Case-insensitive match."""
     if not os.path.isdir(DATA_DIR):
         return None
 
     # Build a map of lowercase folder name -> actual folder name
-    import re
-    folder_map = {}
+    folder_map: Dict[str, str] = {}
     for entry in os.listdir(DATA_DIR):
-        full = os.path.join(DATA_DIR, entry)
+        full: str = os.path.join(DATA_DIR, entry)
         if os.path.isdir(full):
-            normalized = re.sub(r'[^\w\s]', '', entry.lower())
+            normalized: str = re.sub(r'[^\w\s]', '', entry.lower())
             normalized = ' '.join(normalized.split())
             folder_map[normalized] = full
 
-    target = re.sub(r'[^\w\s]', '', word.lower())
+    target: str = re.sub(r'[^\w\s]', '', word.lower())
     target = ' '.join(target.split())
-    folder = folder_map.get(target)
+    folder: Optional[str] = folder_map.get(target)
     if not folder:
         return None
 
-    images = [f for f in os.listdir(folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    images: List[str] = [f for f in os.listdir(folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     if not images:
         return None
 
@@ -74,13 +76,13 @@ def _find_sign_image(word: str):
 
 
 @features_bp.route("/text-to-sign", methods=["POST"])
-def text_to_sign():
-    data = request.get_json() or {}
-    word = (data.get("text") or "").strip()
+def text_to_sign() -> Tuple[Response, int] | Response:
+    data: Dict[str, Any] = request.get_json() or {}
+    word: str = (data.get("text") or "").strip()
     if not word:
         return jsonify({"success": False, "message": "No text provided."}), 400
 
-    img_path = _find_sign_image(word)
+    img_path: Optional[str] = _find_sign_image(word)
     if not img_path:
         return jsonify({"success": False, "message": f"Word '{word}' not found in dataset."}), 404
 
@@ -88,10 +90,10 @@ def text_to_sign():
 
 
 @features_bp.route("/translate", methods=["POST"])
-def translate():
-    data = request.get_json() or {}
-    text = (data.get("text") or "").strip().lower()
-    lang = (data.get("language") or "").strip().lower()
+def translate() -> Tuple[Response, int] | Response:
+    data: Dict[str, Any] = request.get_json() or {}
+    text: str = (data.get("text") or "").strip().lower()
+    lang: str = (data.get("language") or "").strip().lower()
 
     if not text:
         return jsonify({"success": False, "message": "No text provided."}), 400
@@ -99,11 +101,11 @@ def translate():
     if lang == "english":
         return jsonify({"success": True, "translated": text.title()})
 
-    lang_dict = TRANSLATIONS.get(lang)
+    lang_dict: Optional[Dict[str, str]] = TRANSLATIONS.get(lang)
     if not lang_dict:
         return jsonify({"success": False, "message": f"Language '{lang}' not supported."}), 400
 
-    translated = lang_dict.get(text)
+    translated: Optional[str] = lang_dict.get(text)
     if translated:
         return jsonify({"success": True, "translated": translated})
 

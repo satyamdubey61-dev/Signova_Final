@@ -28,6 +28,18 @@ const State = {
     // Playback / voice-to-sign
     playback: { busy: false, listening: false },
 
+    // ── UI Stabilization ──
+    ui: {
+        displayedLabel: '',       // currently rendered label on screen
+        holdActive: false,        // true while a prediction is being held on screen
+        holdTimer: null,          // timer reference for the hold duration
+        holdDurationMs: 700,      // minimum ms a prediction stays displayed
+        cooldownActive: false,    // true while gesture-switch cooldown is active
+        cooldownTimer: null,      // timer reference for cooldown
+        cooldownMs: 500,          // minimum ms between gesture switches
+        debounceThreshold: 2,     // consecutive frames needed before accepting new label
+    },
+
     // Transition guard — prevents conflicting operations
     _locks: new Set(),
     lock(key) { this._locks.add(key); },
@@ -41,6 +53,13 @@ const State = {
         this.speech = { lastSpoken: '', cooldown: false, cooldownTimer: null, speaking: false };
         this.translation = { busy: false };
         this.playback = { busy: false, listening: false };
+        // Clear UI stabilization timers
+        if (this.ui.holdTimer) clearTimeout(this.ui.holdTimer);
+        if (this.ui.cooldownTimer) clearTimeout(this.ui.cooldownTimer);
+        this.ui = {
+            displayedLabel: '', holdActive: false, holdTimer: null, holdDurationMs: 700,
+            cooldownActive: false, cooldownTimer: null, cooldownMs: 500, debounceThreshold: 2,
+        };
         this._locks.clear();
         window.lastRecognizedText = '';
     }
@@ -107,7 +126,11 @@ const SpeechEngine = {
         const out = $('voice-output'), wf = $('voice-waveform');
         if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
+        
+        // Strip out any confidence percentage suffix (e.g. "Hello (90%)" -> "Hello")
+        const cleanText = text.replace(/\s*\(\d+%\)/g, '');
+        
+        const u = new SpeechSynthesisUtterance(cleanText);
         u.rate = 1; u.pitch = 1; u.volume = 1; u.lang = lang;
         State.speech.speaking = true;
         if (wf) wf.classList.remove('hidden');
@@ -117,14 +140,17 @@ const SpeechEngine = {
     },
 
     tryAutoSpeak(label) {
+        if (!label || label.includes('ANALYZING') || label.includes('CONFIDENCE') || label.includes('DETECTED') || label.includes('No hand')) return;
         const s = State.speech;
+        // Only speak when the stable prediction actually CHANGES
         if (s.cooldown || label === s.lastSpoken) return;
         if (State.recognition.stableCount >= this.STABLE_THRESHOLD) {
             s.cooldown = true;
             s.lastSpoken = label;
+            console.log('[Speech] Speaking:', label);
             this.speak(label);
             if (s.cooldownTimer) clearTimeout(s.cooldownTimer);
-            s.cooldownTimer = setTimeout(() => { s.cooldown = false; s.lastSpoken = ''; }, this.COOLDOWN_MS);
+            s.cooldownTimer = setTimeout(() => { s.cooldown = false; }, this.COOLDOWN_MS);
         }
     },
 
@@ -186,6 +212,10 @@ const Recognition = {
         try { await Camera.start(); } catch { State.unlock('recognition'); return; }
 
         r.running = true; r.stableCount = 0; r.stableLabel = ''; r.lastLabel = '';
+        // Reset UI stabilization for a fresh start
+        State.ui.displayedLabel = ''; State.ui.holdActive = false; State.ui.cooldownActive = false;
+        if (State.ui.holdTimer) { clearTimeout(State.ui.holdTimer); State.ui.holdTimer = null; }
+        if (State.ui.cooldownTimer) { clearTimeout(State.ui.cooldownTimer); State.ui.cooldownTimer = null; }
         State.speech.lastSpoken = ''; State.speech.cooldown = false;
 
         const btn = $('start-button');
@@ -200,7 +230,7 @@ const Recognition = {
 
         State.unlock('recognition');
         await this._capture();
-        r.intervalId = setInterval(() => this._capture(), 1500);
+        r.intervalId = setInterval(() => this._capture(), 100);
     },
 
     stop() {
@@ -230,8 +260,23 @@ const Recognition = {
 
     toggle() { State.recognition.running ? this.stop() : this.start(); },
 
+    // Backend status strings that are NOT real gesture predictions
+    _STATUS_LABELS: ['ANALYZING...', 'LOW CONFIDENCE', 'NO HAND DETECTED', 'MODEL ERROR'],
+
+    _isStatusLabel(label) {
+        if (!label) return true;
+        // Backend formats real labels as "HELLO (92%)" — strip confidence suffix to check
+        const base = label.replace(/\s*\(\d+%\)$/g, '').trim();
+        return this._STATUS_LABELS.includes(base);
+    },
+
+    _extractCleanLabel(label) {
+        // "HELLO (92%)" → "HELLO"
+        return label.replace(/\s*\(\d+%\)$/g, '').trim();
+    },
+
     async _capture() {
-        const vid = $('video'), r = State.recognition;
+        const vid = $('video'), r = State.recognition, ui = State.ui;
         if (!vid || vid.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !r.running) return;
 
         const c = document.createElement('canvas');
@@ -239,42 +284,146 @@ const Recognition = {
         c.getContext('2d').drawImage(vid, 0, 0, c.width, c.height);
         const data = c.toDataURL('image/jpeg', 0.8);
 
-        const st = $('cam-status-text'); if (st) st.textContent = 'ANALYZING...';
+        // ── Only show ANALYZING if nothing is currently held on screen ──
+        const st = $('cam-status-text');
+        if (!ui.holdActive && !ui.displayedLabel) {
+            if (st) st.textContent = 'ANALYZING...';
+        }
 
         try {
             const res = await fetch(API.predict, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: data }) });
             const result = await res.json();
             if (!res.ok) throw new Error(result?.error || 'fail');
 
+            const rawLabel = result.label || null;
+            const confidence = result.confidence || 0;
+            const isStatus = this._isStatusLabel(rawLabel);
+            const cleanLabel = rawLabel && !isStatus ? this._extractCleanLabel(rawLabel) : null;
+            const isNoHand = rawLabel && rawLabel.includes('NO HAND DETECTED');
+
+            // ── Comprehensive debug log ──
+            console.log(
+                `[Predict] hand=${!isNoHand && rawLabel !== null} | raw="${rawLabel}" | clean="${cleanLabel}" | conf=${confidence?.toFixed?.(1) ?? confidence} | ` +
+                `isStatus=${isStatus} | stableCount=${r.stableCount} | displayed="${ui.displayedLabel}" | hold=${ui.holdActive} | cooldown=${ui.cooldownActive}`
+            );
+
             const tt = $('translated-text'), cb = $('confidence-badge'), cv = $('confidence-val'), pb = $('pulse-bar'), vo = $('voice-output');
 
-            if (result.label) {
-                // Stability tracking
-                if (result.label === r.stableLabel) { r.stableCount++; } else { r.stableCount = 1; r.stableLabel = result.label; }
-                r.lastLabel = result.label;
-                window.lastRecognizedText = result.label;
+            // ═══════════════════════════════════════════════
+            // CASE 1: Backend returned a REAL gesture label
+            // ═══════════════════════════════════════════════
+            if (cleanLabel) {
+                // ── Stability tracking (only track real gesture labels) ──
+                if (cleanLabel === r.stableLabel) {
+                    r.stableCount++;
+                } else {
+                    r.stableCount = 1;
+                    r.stableLabel = cleanLabel;
+                }
+                r.lastLabel = cleanLabel;
 
-                typeText(tt, result.label);
+                // ── Debounce: require N consecutive identical frames ──
+                if (r.stableCount < ui.debounceThreshold) {
+                    console.log(`[Predict] REJECTED — debounce: need ${ui.debounceThreshold} frames, have ${r.stableCount}`);
+                    // During debounce, if we already have something displayed, keep it
+                    // If nothing displayed yet, show the incoming label immediately (first detection)
+                    if (!ui.displayedLabel) {
+                        // First-time: show it even before debounce so user gets instant feedback
+                        typeText(tt, cleanLabel);
+                        if (st) { st.textContent = 'DETECTED'; st.classList.add('active'); }
+                        if (pb) pb.style.width = '100%';
+                    }
+                    return;
+                }
+
+                // ── Cooldown: prevent switching gestures faster than cooldownMs ──
+                if (ui.cooldownActive && cleanLabel !== ui.displayedLabel) {
+                    console.log(`[Predict] REJECTED — cooldown active, cannot switch from "${ui.displayedLabel}" to "${cleanLabel}"`);
+                    return;
+                }
+
+                // ── State lock: same label already displayed → skip DOM rewrite ──
+                if (cleanLabel === ui.displayedLabel && ui.holdActive) {
+                    // Silently update confidence only
+                    if (cb && cv && confidence > 0) {
+                        cv.textContent = Math.round(confidence);
+                    }
+                    SpeechEngine.tryAutoSpeak(cleanLabel);
+                    return;
+                }
+
+                // ═══ NEW STABLE PREDICTION — update the display ═══
+                const previousLabel = ui.displayedLabel;
+                ui.displayedLabel = cleanLabel;
+                window.lastRecognizedText = cleanLabel;
+
+                // Update DOM once
+                typeText(tt, cleanLabel);
                 if (pb) pb.style.width = '100%';
-                if (cb && cv && result.confidence !== undefined) {
+                if (cb && cv && confidence > 0) {
                     cb.classList.remove('hidden', 'high', 'medium');
-                    cv.textContent = Math.round(result.confidence);
-                    cb.classList.add(result.confidence > 80 ? 'high' : result.confidence > 50 ? 'medium' : '');
+                    cv.textContent = Math.round(confidence);
+                    cb.classList.add(confidence > 80 ? 'high' : confidence > 50 ? 'medium' : '');
                 }
                 if (st) { st.textContent = 'DETECTED'; st.classList.add('active'); }
+                if (vo) vo.textContent = cleanLabel;
 
-                if (vo) vo.textContent = result.label;
-                SpeechEngine.tryAutoSpeak(result.label);
-            } else {
-                if (tt) tt.textContent = 'No hand detected. Adjust your hand.';
-                if (cb) cb.classList.add('hidden');
-                if (pb) pb.style.width = '0';
-                if (st) { st.textContent = 'SCANNING'; st.classList.add('active'); }
+                // ── Hold: keep this prediction displayed for holdDurationMs ──
+                if (ui.holdTimer) clearTimeout(ui.holdTimer);
+                ui.holdActive = true;
+                ui.holdTimer = setTimeout(() => {
+                    ui.holdActive = false;
+                    console.log(`[Hold] Released hold on "${ui.displayedLabel}"`);
+                }, ui.holdDurationMs);
+
+                // ── Cooldown: prevent rapid gesture switching ──
+                if (previousLabel && previousLabel !== cleanLabel) {
+                    if (ui.cooldownTimer) clearTimeout(ui.cooldownTimer);
+                    ui.cooldownActive = true;
+                    ui.cooldownTimer = setTimeout(() => {
+                        ui.cooldownActive = false;
+                        console.log('[Cooldown] Gesture switch cooldown ended');
+                    }, ui.cooldownMs);
+                }
+
+                // Voice — only when stable prediction truly changes
+                SpeechEngine.tryAutoSpeak(cleanLabel);
+
+                console.log(`[Predict] ✓ ACCEPTED "${cleanLabel}" (was "${previousLabel || 'none'}")`);
+
+            // ═══════════════════════════════════════════════
+            // CASE 2: Backend explicitly says NO HAND DETECTED
+            // ═══════════════════════════════════════════════
+            } else if (isNoHand) {
+                // Only clear the display if nothing is being held
+                if (!ui.holdActive) {
+                    if (tt) tt.textContent = 'No hand detected. Adjust your hand.';
+                    if (cb) cb.classList.add('hidden');
+                    if (pb) pb.style.width = '0';
+                    if (st) { st.textContent = 'SCANNING'; st.classList.add('active'); }
+                    ui.displayedLabel = '';
+                }
                 r.stableCount = 0; r.stableLabel = '';
+                console.log('[Predict] No hand — backend confirmed zero hands');
+
+            // ═══════════════════════════════════════════════
+            // CASE 3: Backend status (ANALYZING, LOW CONFIDENCE, etc.)
+            //   → Do NOT clear the display, do NOT reset stability
+            // ═══════════════════════════════════════════════
+            } else {
+                // Backend is still building sequence / below confidence
+                // Keep whatever is currently displayed — do nothing to DOM
+                if (!ui.holdActive && !ui.displayedLabel) {
+                    // Nothing displayed yet — show a non-disruptive status
+                    if (st) { st.textContent = 'SCANNING'; st.classList.add('active'); }
+                }
+                console.log(`[Predict] Status: "${rawLabel}" — keeping current display`);
             }
         } catch (e) {
             console.error('Prediction error:', e);
-            const tt = $('translated-text'); if (tt) tt.textContent = 'Error contacting server.';
+            if (!ui.holdActive) {
+                const tt = $('translated-text'); if (tt) tt.textContent = 'Error contacting server.';
+            }
         }
     }
 };
@@ -309,6 +458,8 @@ const Auth = {
     logout() {
         Recognition.stop();
         State.reset();
+        localStorage.removeItem('signova_user');
+        fetch('/api/logout', { method: 'POST' }).catch(() => {});
         this._updateNavbar(false);
         showToast('Logged out successfully.');
     },
@@ -333,6 +484,16 @@ const Auth = {
 // DOM READY — Wire events
 // ====================================================
 document.addEventListener('DOMContentLoaded', () => {
+    // Auto-login persistence check
+    const savedUser = localStorage.getItem('signova_user');
+    if (savedUser) {
+        try {
+            State.auth.user = JSON.parse(savedUser);
+            Auth._updateNavbar(true);
+        } catch (e) {
+            localStorage.removeItem('signova_user');
+        }
+    }
 
     // --- Modals ---
     $('login-btn')?.addEventListener('click', () => showModal($('login-modal')));
@@ -367,6 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = await Auth.login(em, pw);
         if (!r?.success) { setMsg(msg, r?.message || 'Login failed.'); return; }
         setMsg(msg, 'Login successful!', false);
+        localStorage.setItem('signova_user', JSON.stringify(r.user));
         Auth._updateNavbar(true);
         setTimeout(() => hideModal($('login-modal')), 1000);
     });

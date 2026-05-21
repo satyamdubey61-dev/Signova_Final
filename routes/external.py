@@ -1,25 +1,28 @@
-from flask import Blueprint, request, jsonify
+from typing import Any, Dict, Tuple
+
+from flask import Blueprint, Response, request, jsonify
 import os
 import smtplib
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from utils.logger import logger
 
-external_bp = Blueprint('external', __name__)
+external_bp: Blueprint = Blueprint('external', __name__)
 
-CONTACT_TO_EMAIL = os.environ.get("CONTACT_TO_EMAIL", "info.evolvora@gmail.com")
-CONTACT_FROM_EMAIL = os.environ.get("CONTACT_FROM_EMAIL", "info.evolvora@gmail.com")
-GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
+CONTACT_TO_EMAIL: str = os.environ.get("CONTACT_TO_EMAIL", "info.evolvora@gmail.com") or ""
+CONTACT_FROM_EMAIL: str = os.environ.get("CONTACT_FROM_EMAIL", "info.evolvora@gmail.com") or ""
+GMAIL_APP_PASSWORD: str = os.environ.get("GMAIL_APP_PASSWORD", "") or ""
+
 
 @external_bp.route("/contact", methods=["POST"])
-def contact():
+def contact() -> Tuple[Response, int] | Response:
     if not request.is_json:
         return jsonify({"success": False, "message": "Request must be JSON."}), 400
 
-    data = request.get_json() or {}
-    name = (data.get("name") or "").strip()
-    sender_email = (data.get("email") or "").strip()
-    message_body = (data.get("message") or "").strip()
+    data: Dict[str, Any] = request.get_json() or {}
+    name: str = (data.get("name") or "").strip()
+    sender_email: str = (data.get("email") or "").strip()
+    message_body: str = (data.get("message") or "").strip()
 
     if not name or not sender_email or not message_body:
         return jsonify({"success": False, "message": "Name, email and message are required."}), 400
@@ -30,10 +33,10 @@ def contact():
             "message": "Contact form is not configured. Administrator: set GMAIL_APP_PASSWORD.",
         }), 503
 
-    subject = f"SignifyConnect – Get In Touch from {name}"
-    body = f"You received a message from the SignifyConnect contact form.\n\nName: {name}\nEmail: {sender_email}\n\nMessage:\n{message_body}\n"
-    
-    msg = MIMEText(body, "plain", "utf-8")
+    subject: str = f"SignifyConnect – Get In Touch from {name}"
+    body: str = f"You received a message from the SignifyConnect contact form.\n\nName: {name}\nEmail: {sender_email}\n\nMessage:\n{message_body}\n"
+
+    msg: MIMEText = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = subject
     msg["From"] = formataddr(("SignifyConnect Contact", CONTACT_FROM_EMAIL))
     msg["To"] = CONTACT_TO_EMAIL
