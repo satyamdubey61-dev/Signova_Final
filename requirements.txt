@@ -4,9 +4,9 @@ gunicorn==23.0.0
 numpy==1.26.4
 pandas
 scikit-learn>=1.2.0
-opencv-python==4.8.1.78
-opencv-contrib-python==4.8.1.78
-mediapipe==0.10.9
+opencv-python-headless==4.8.1.78
+opencv-contrib-python-headless==4.8.1.78
+mediapipe==0.10.21
 matplotlib==3.8.4
 pillow==10.4.0
 flask-login==0.6.3
