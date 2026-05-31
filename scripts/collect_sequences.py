@@ -9,18 +9,22 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-from services.mediapipe_service import mediapipe_service
+from services.mediapipe_service import mediapipe_service, MediaPipeService
 from utils.logger import logger
 
 def main():
-    # 10 Unique Target ISL Gestures
+    # 11 Target ISL Gestures: 7 words + 4 alphabets
     classes = [
-        'Hello', 'Yes', 'No', 'Thank You', 'Please', 
-        'Sorry', 'Help', 'Good', 'Bad', 'I Love You'
+        'Hello', 'Yes', 'No', 'Thank You',
+        'Sorry', 'Help', 'I Love You',
+        'A', 'C', 'V', 'I'
     ]
 
+    # Alphabet classes (static single-hand gestures)
+    ALPHABET_CLASSES = {'A', 'C', 'V', 'I'}
+
     # Configure parameters
-    sequences_per_class = 40  # 40 actions per gesture class (exceeds 30 minimum requirement)
+    sequences_per_class = 50  # 50 actions per gesture class for better differentiation
     sequence_length = 30      # 30 frames per sequence
 
     # Ensure Data folder exists
@@ -47,9 +51,10 @@ def main():
     print("=======================================================")
     print(f"Data Dir: {data_dir}")
     print("Instructions:")
-    print("  - For each gesture, we will record 40 action sequences.")
+    print("  - For each gesture, we will record 50 action sequences.")
     print("  - Each action sequence consists of 30 frames.")
     print("  - A 2-second countdown will prepare you before each action.")
+    print("  - Alphabet gestures (A,C,V,I) use STATIC GESTURE MODE.")
     print("  - Press 's' to start collecting the active class.")
     print("  - Press 'n' to skip to the next class.")
     print("  - Press 'q' or ESC to quit.")
@@ -63,6 +68,14 @@ def main():
         os.makedirs(class_dir, exist_ok=True)
 
         print(f"\n---> Ready to collect sequences for: '{target_class}' ({current_class_idx + 1}/{len(classes)})")
+
+        # Use high-confidence MediaPipe service for alphabet (static) gestures
+        is_alphabet = target_class in ALPHABET_CLASSES
+        if is_alphabet:
+            mp_service = MediaPipeService.create_collection_mode()
+            print(f"     [STATIC GESTURE MODE] Using high-confidence detection for '{target_class}'")
+        else:
+            mp_service = mediapipe_service
         
         collecting = False
         seq_idx = 0
@@ -77,17 +90,23 @@ def main():
             frame = cv2.flip(frame, 1)
             h_img, w_img, _ = frame.shape
 
-            # Extract features for visualization
-            _, results = mediapipe_service.extract_landmarks(frame)
-            mediapipe_service.draw_landmarks(frame, results)
+            # Extract features for visualization (uses high-confidence service for alphabets)
+            _, results = mp_service.extract_landmarks(frame)
+            mp_service.draw_landmarks(frame, results)
 
             # Header info overlay
-            cv2.rectangle(frame, (0, 0), (w_img, 65), (21, 16, 16), -1)
-            cv2.putText(frame, f"GESTURE: {target_class} ({current_class_idx + 1}/{len(classes)})", 
+            header_h = 85 if is_alphabet else 65
+            cv2.rectangle(frame, (0, 0), (w_img, header_h), (21, 16, 16), -1)
+            cv2.putText(frame, f"CURRENT CLASS: {target_class} ({current_class_idx + 1}/{len(classes)})", 
                         (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
             
             status_text = f"Sequence {seq_idx + 1}/{sequences_per_class} | Press 's' to START, 'n' to skip, 'q' to quit"
             cv2.putText(frame, status_text, (15, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (34, 211, 238), 2, cv2.LINE_AA)
+
+            # Show STATIC GESTURE MODE badge for alphabet classes
+            if is_alphabet:
+                cv2.putText(frame, "STATIC GESTURE MODE", (15, 75), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 200, 50), 2, cv2.LINE_AA)
 
             cv2.imshow("Signova LSTM Sequence Collector", frame)
             
@@ -105,7 +124,7 @@ def main():
                 collecting = True
 
             if collecting:
-                # Loop through and record all 40 sequences
+                # Loop through and record all 50 sequences
                 for s in range(seq_idx, sequences_per_class):
                     # 1. 2-second prepare countdown
                     for countdown in range(3, 0, -1):
@@ -117,14 +136,18 @@ def main():
                             frame = cv2.flip(frame, 1)
                             
                             # Draw overlays
-                            _, results = mediapipe_service.extract_landmarks(frame)
-                            mediapipe_service.draw_landmarks(frame, results)
+                            _, results = mp_service.extract_landmarks(frame)
+                            mp_service.draw_landmarks(frame, results)
                             
-                            cv2.rectangle(frame, (0, 0), (w_img, 65), (21, 16, 16), -1)
-                            cv2.putText(frame, f"CLASS: {target_class} | SEQ {s+1}/{sequences_per_class}", 
+                            cd_header_h = 85 if is_alphabet else 65
+                            cv2.rectangle(frame, (0, 0), (w_img, cd_header_h), (21, 16, 16), -1)
+                            cv2.putText(frame, f"CURRENT CLASS: {target_class} | SEQ {s+1}/{sequences_per_class}", 
                                         (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
                             cv2.putText(frame, f"GET READY... STARTING IN {countdown}", 
                                         (15, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (239, 68, 68), 2, cv2.LINE_AA)
+                            if is_alphabet:
+                                cv2.putText(frame, "STATIC GESTURE MODE", (15, 75),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 200, 50), 2, cv2.LINE_AA)
                             
                             # Massive visual countdown in center
                             cv2.putText(frame, str(countdown), (w_img//2 - 20, h_img//2 + 20), 
@@ -143,12 +166,12 @@ def main():
                         frame = cv2.flip(frame, 1)
 
                         # Extract landmarks
-                        feats, results = mediapipe_service.extract_landmarks(frame)
+                        feats, results = mp_service.extract_landmarks(frame)
                         sequence.append(feats)
                         f_count += 1
 
                         # Draw stylized landmarks
-                        mediapipe_service.draw_landmarks(frame, results)
+                        mp_service.draw_landmarks(frame, results)
 
                         # Overlay recording status
                         cv2.rectangle(frame, (0, 0), (w_img, 65), (21, 16, 16), -1)

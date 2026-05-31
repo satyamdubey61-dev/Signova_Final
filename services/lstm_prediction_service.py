@@ -16,7 +16,7 @@ class LSTMPredictionService:
         self,
         model_path: Optional[str] = None,
         labels_path: Optional[str] = None,
-        min_confidence: float = 0.55,
+        min_confidence: float = 0.75,
         sequence_length: int = 30,
     ) -> None:
         """Initializes the LSTM sequence prediction service with tuned stability filters."""
@@ -45,10 +45,15 @@ class LSTMPredictionService:
         self.session_prev_features: Dict[str, Optional[NDArray[Any]]] = {}
         self.session_prev_raw_label: Dict[str, Optional[str]] = {}
 
+        # Configurable stabilization and latency parameters
+        self.stable_frames_required: int = 2
+        self.prediction_window: int = 5
+        self.freeze_duration: float = 0.2
+
         # Speech Cooldown per session
         self.session_last_spoken: Dict[str, Optional[str]] = {}
         self.session_last_spoken_time: Dict[str, float] = {}
-        self.speech_cooldown: float = 3.0
+        self.speech_cooldown: float = 1.0
 
         # Debug log throttle (log every Nth inference to avoid spam)
         self.session_debug_counter: Dict[str, int] = {}
@@ -78,7 +83,7 @@ class LSTMPredictionService:
         """Helper to fetch or instantiate session-specific state buffers."""
         if session_id not in self.session_buffers:
             self.session_buffers[session_id] = deque(maxlen=self.sequence_length)
-            self.session_history[session_id] = deque(maxlen=10)
+            self.session_history[session_id] = deque(maxlen=self.prediction_window)
             self.session_stable_label[session_id] = None
             self.session_consecutive[session_id] = 0
             self.session_last_candidate[session_id] = None
@@ -124,7 +129,7 @@ class LSTMPredictionService:
         buffer, history = self.get_or_create_session(session_id)
         current_time: float = time.time()
 
-        # 1. Check Output Freeze Timer (0.8 seconds after stable lock)
+        # 1. Check Output Freeze Timer
         if current_time < self.session_freeze_until.get(session_id, 0.0):
             frozen_label, frozen_conf = self.session_last_result[session_id]
             return self._format_display(frozen_label, frozen_conf), frozen_conf
@@ -212,6 +217,33 @@ class LSTMPredictionService:
                     f"raw_conf={current_confidence:.1f}%"
                 )
 
+            # --- FAST TRANSITION BYPASS FOR HIGH-CONFIDENCE PREDICTIONS (>85%) ---
+            if current_confidence > 85.0 and raw_label not in ("ANALYZING...", "LOW CONFIDENCE", "NO HAND DETECTED", "MODEL ERROR"):
+                if self.session_stable_label.get(session_id) != raw_label:
+                    logger.info(
+                        f"[FAST-LOCK] session='{session_id}' | "
+                        f"gesture='{raw_label}' conf={current_confidence:.1f}% | "
+                        f"bypassing stabilization due to high confidence (>85%)"
+                    )
+                    # Trigger async Speech output
+                    if self.should_speak(session_id, raw_label):
+                        speech_service.speak(raw_label)
+
+                self.session_stable_label[session_id] = raw_label
+                self.session_last_result[session_id] = (raw_label, current_confidence)
+                self.session_consecutive[session_id] = self.stable_frames_required
+                self.session_last_candidate[session_id] = raw_label
+                
+                # Fill history queue with raw_label to maintain stability
+                history.clear()
+                for _ in range(self.prediction_window):
+                    history.append(raw_label)
+                
+                # Set a short freeze to prevent high-speed duplicate triggers but keep feel immediate
+                self.session_freeze_until[session_id] = current_time + self.freeze_duration
+                
+                return f"{raw_label} ({current_confidence:.0f}%)", current_confidence
+
             # 6. Confidence Smoothing (responsive: 60% current, 40% previous)
             prev_conf: float = self.session_prev_confidence.get(session_id, 0.0)
             prev_raw_label: Optional[str] = self.session_prev_raw_label.get(session_id)
@@ -245,18 +277,24 @@ class LSTMPredictionService:
                         f"label='{raw_label}' conf={smoothed_confidence:.1f}% < threshold={self.min_confidence*100:.0f}% | "
                         f"reason='LOW_CONFIDENCE'"
                     )
+                # Maintain the last stable prediction if available
+                last_stable = self.session_stable_label.get(session_id)
+                if last_stable:
+                    self.session_last_result[session_id] = (last_stable, smoothed_confidence)
+                    return f"{last_stable} ({smoothed_confidence:.0f}%)", smoothed_confidence
+
                 self.session_last_result[session_id] = ("LOW CONFIDENCE", smoothed_confidence)
                 return "LOW CONFIDENCE", smoothed_confidence
 
-            # 8. Rolling Prediction Smoothing & Majority Voting (5/10 window)
+            # 8. Rolling Prediction Smoothing & Majority Voting (3/5 window)
             history.append(raw_label)
             counter: Counter[str] = Counter(history)
             smoothed_label: str
             count: int
             smoothed_label, count = counter.most_common(1)[0]
 
-            # Candidate requires majority (at least 5 out of 10 predictions)
-            candidate: Optional[str] = smoothed_label if count >= 5 else None
+            # Candidate requires majority (at least 3 out of 5 predictions)
+            candidate: Optional[str] = smoothed_label if count >= 3 else None
 
             if candidate is None:
                 if self.session_debug_counter[session_id] % self._debug_log_interval == 0:
@@ -265,18 +303,24 @@ class LSTMPredictionService:
                         f"label='{raw_label}' | history={dict(counter)} | "
                         f"reason='NO_MAJORITY ({count}/{len(history)})'"
                     )
+                # Keep last stable prediction visible during transition
+                last_stable = self.session_stable_label.get(session_id)
+                if last_stable:
+                    self.session_last_result[session_id] = (last_stable, smoothed_confidence)
+                    return f"{last_stable} ({smoothed_confidence:.0f}%)", smoothed_confidence
+
                 self.session_last_result[session_id] = ("ANALYZING...", smoothed_confidence)
                 return "ANALYZING...", smoothed_confidence
 
-            # 9. Stable Gesture Locking (4 consecutive, down from 10)
+            # 9. Stable Gesture Locking
             if candidate == self.session_last_candidate[session_id]:
                 self.session_consecutive[session_id] += 1
             else:
                 self.session_consecutive[session_id] = 1
                 self.session_last_candidate[session_id] = candidate
 
-            # Accept prediction after 4 consecutive matches
-            if self.session_consecutive[session_id] >= 4:
+            # Accept prediction after stable_frames_required consecutive matches
+            if self.session_consecutive[session_id] >= self.stable_frames_required:
                 if self.session_stable_label[session_id] != candidate:
                     logger.info(
                         f"[LOCKED] session='{session_id}' | "
@@ -287,21 +331,27 @@ class LSTMPredictionService:
                     if self.should_speak(session_id, candidate):
                         speech_service.speak(candidate)
 
-                    # Freeze output for 0.8 seconds (down from 1.5)
-                    self.session_freeze_until[session_id] = current_time + 0.8
+                    # Freeze output for self.freeze_duration seconds (0.2 seconds)
+                    self.session_freeze_until[session_id] = current_time + self.freeze_duration
 
                 self.session_stable_label[session_id] = candidate
                 self.session_last_result[session_id] = (candidate, smoothed_confidence)
                 return f"{candidate} ({smoothed_confidence:.0f}%)", smoothed_confidence
 
-            # Before 4 stable frames, keep showing "ANALYZING..."
+            # Before stable matches reached, show last stable prediction if available
             if self.session_debug_counter[session_id] % self._debug_log_interval == 0:
                 logger.info(
                     f"[PENDING] session='{session_id}' | "
                     f"candidate='{candidate}' conf={smoothed_confidence:.1f}% | "
-                    f"consecutive={self.session_consecutive[session_id]}/4 | "
+                    f"consecutive={self.session_consecutive[session_id]}/{self.stable_frames_required} | "
                     f"reason='BUILDING_STABILITY'"
                 )
+            
+            last_stable = self.session_stable_label.get(session_id)
+            if last_stable:
+                self.session_last_result[session_id] = (last_stable, smoothed_confidence)
+                return f"{last_stable} ({smoothed_confidence:.0f}%)", smoothed_confidence
+
             self.session_last_result[session_id] = ("ANALYZING...", smoothed_confidence)
             return "ANALYZING...", smoothed_confidence
 
@@ -316,14 +366,9 @@ class LSTMPredictionService:
 
         current_time: float = time.time()
         last_spoken: Optional[str] = self.session_last_spoken.get(session_id)
-        last_spoken_time: float = self.session_last_spoken_time.get(session_id, 0.0)
 
         if label != last_spoken:
             self.session_last_spoken[session_id] = label
-            self.session_last_spoken_time[session_id] = current_time
-            return True
-
-        if current_time - last_spoken_time >= self.speech_cooldown:
             self.session_last_spoken_time[session_id] = current_time
             return True
 

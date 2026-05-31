@@ -1,3 +1,5 @@
+import threading
+import time
 from typing import Any, Optional, Tuple
 
 import cv2
@@ -25,7 +27,28 @@ class MediaPipeService:
         )
         self.mp_draw: Any = mp.solutions.drawing_utils
         self.mp_drawing_styles: Any = mp.solutions.drawing_styles
+
+        # Timestamp synchronization — prevents "Packet timestamp mismatch" crashes
+        self._last_timestamp_ms: int = 0
+        # Threading lock — prevents concurrent frame processing from overlapping requests
+        self._lock: threading.Lock = threading.Lock()
+
         logger.info("MediaPipe Holistic service initialized successfully.")
+
+    @classmethod
+    def create_collection_mode(cls) -> "MediaPipeService":
+        """Creates a MediaPipeService instance optimized for static alphabet gesture collection.
+
+        Uses higher detection/tracking confidence (0.75) for better single-hand
+        finger landmark precision during data collection for A, C, V, I gestures.
+        """
+        logger.info("Creating MediaPipe service in COLLECTION MODE (confidence=0.75)")
+        return cls(
+            static_image_mode=False,
+            model_complexity=1,
+            min_detection_confidence=0.75,
+            min_tracking_confidence=0.75,
+        )
 
     def extract_landmarks(self, img_bgr: Optional[NDArray[Any]]) -> Tuple[NDArray[Any], Any]:
         """
@@ -43,10 +66,29 @@ class MediaPipeService:
         h_img, w_img, _ = img_bgr.shape
         img_rgb: NDArray[Any] = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
-        # Disable writing on image to improve speed
-        img_rgb.flags.writeable = False
-        results: Any = self.holistic.process(img_rgb)
-        img_rgb.flags.writeable = True
+        # Acquire lock — only one frame can be processed at a time
+        # If another request is already processing, skip this frame
+        if not self._lock.acquire(blocking=False):
+            logger.debug("MediaPipe busy — skipping overlapping frame")
+            return np.zeros(1530), None
+
+        try:
+            # Force strictly increasing timestamps to prevent MediaPipe crash:
+            # "Packet timestamp mismatch on stream 'image'"
+            current_ts: int = int(time.monotonic() * 1_000_000)  # microseconds
+            if current_ts <= self._last_timestamp_ms:
+                current_ts = self._last_timestamp_ms + 1
+            self._last_timestamp_ms = current_ts
+
+            # Disable writing on image to improve speed
+            img_rgb.flags.writeable = False
+            results: Any = self.holistic.process(img_rgb)
+            img_rgb.flags.writeable = True
+        except Exception as e:
+            logger.warning(f"MediaPipe processing error (timestamp/internal): {e}")
+            return np.zeros(1530), None
+        finally:
+            self._lock.release()
 
         # 1. Extract and Normalize Left Hand (63 features)
         left_hand_features: NDArray[Any] = np.zeros(63)

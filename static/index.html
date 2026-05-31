@@ -21,21 +21,29 @@
     <form id="login-form" class="modal-form" autocomplete="off">
       <div class="field-group">
         <label for="login-email">Email Address</label>
-        <input type="email" id="login-email" name="email" required placeholder="you@example.com">
+        <input type="email" id="login-email" name="email" required placeholder="you@example.com" value="test@example.com">
       </div>
       <div class="field-group">
         <label for="login-password">Password</label>
         <div class="password-wrap">
-          <input type="password" id="login-password" name="password" required placeholder="••••••••">
+          <input type="password" id="login-password" name="password" required placeholder="••••••••" value="testpassword">
           <button type="button" id="toggle-login-password" aria-label="Show password" aria-pressed="false">
             <svg class="eye-open w18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
             <svg class="eye-closed w18 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 10.05 0 012.335-3.592M9.88 9.88a3 3 0 014.24 4.24M6.1 6.1L4 4m0 0l2.1 2.1M4 4l4.243 4.243M20 20l-2.1-2.1M20 20L15.757 15.757"/></svg>
           </button>
         </div>
       </div>
+      <div class="remember-me-wrap" style="display:flex; align-items:center; gap:8px; margin:4px 0 12px 0;">
+        <input type="checkbox" id="login-remember" style="width:16px; height:16px; accent-color:var(--cyan); cursor:pointer;">
+        <label for="login-remember" style="font-size:0.85rem; color:var(--text-dim); cursor:pointer; user-select:none;">Remember Me</label>
+      </div>
       <button type="submit" class="btn-primary w-full">Sign In</button>
     </form>
     <p id="login-message" class="form-msg hidden"></p>
+    <div style="margin-top:12px; padding:10px; background:rgba(0,242,254,0.03); border:1px dashed rgba(0,242,254,0.2); border-radius:6px; text-align:center;">
+      <p style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">Demo Credentials (Single-Click Sign In):</p>
+      <code style="font-size:0.75rem; color:var(--cyan); font-weight:600;">test@example.com / testpassword</code>
+    </div>
     <p class="modal-switch">Don't have an account? <button id="switch-to-signup">Sign Up</button></p>
   </div>
 </div>
@@ -50,7 +58,7 @@
     <form id="signup-form" class="modal-form" autocomplete="off">
       <div class="field-group">
         <label for="signup-name">Full Name</label>
-        <input type="text" id="signup-name" name="name" required placeholder="Jane Doe">
+        <input type="text" id="signup-name" name="name" required placeholder="Ajeet Sigh">
       </div>
       <div class="field-group">
         <label for="signup-email">Email Address</label>
@@ -82,9 +90,11 @@
     </a>
     <nav class="navbar-nav">
       <a href="#" class="nav-link">Home</a>
-      <a href="#translator" class="nav-link">Translator</a>
+      <a href="/learn" class="nav-link" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+      <a href="/dashboard" class="nav-link" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+      <a href="/ai-assistant" class="nav-link" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+      <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;" id="nav-live-conversation">💬 Live Conversation</a>
       <a href="#about" class="nav-link">About</a>
-      <a href="#gallery" class="nav-link">Gallery</a>
       <a href="#contact" class="nav-link">Contact</a>
     </nav>
     <div class="navbar-actions">
@@ -102,9 +112,11 @@
   </div>
   <div class="mobile-nav hidden" id="mobile-nav">
     <a href="#" class="nav-link">Home</a>
-    <a href="#translator" class="nav-link">Translator</a>
+    <a href="/learn" class="nav-link" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+    <a href="/dashboard" class="nav-link" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+    <a href="/ai-assistant" class="nav-link" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+    <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;">💬 Live Conversation</a>
     <a href="#about" class="nav-link">About</a>
-    <a href="#gallery" class="nav-link">Gallery</a>
     <a href="#contact" class="nav-link">Contact</a>
   </div>
 </header>
@@ -230,6 +242,9 @@
               <option value="marathi">Marathi</option>
               <option value="konkani">Konkani</option>
               <option value="tamil">Tamil</option>
+              <option value="punjabi">Punjabi</option>
+              <option value="gujarati">Gujarati</option>
+              <option value="bhojpuri">Bhojpuri</option>
             </select>
             <button id="translate-btn" class="btn-primary btn-sm">Translate</button>
           </div>
@@ -249,7 +264,11 @@
         <button id="text-to-sign-btn" class="btn-primary">Show Sign</button>
       </div>
       <p id="text-sign-status" class="tts-status hidden">Showing sign for: <strong id="text-sign-word"></strong></p>
-      <img id="text-sign-image" class="tts-img hidden" alt="Sign language gesture">
+      <div id="text-sign-container" class="tts-preview-container hidden">
+        <img id="text-sign-image" class="tts-img hidden" alt="Sign language gesture">
+        <video id="text-sign-video" class="tts-video hidden" autoplay loop muted playsinline></video>
+        <p id="text-sign-fallback" class="tts-fallback hidden">Animated sign not available</p>
+      </div>
     </div>
 
     <!-- Voice to Sign -->
@@ -259,7 +278,11 @@
         <h3>Voice → Sign</h3>
       </div>
       <button id="voice-to-sign-button" class="btn-primary">Speak &amp; Show Sign</button>
-      <img id="voice-sign-image" class="tts-img hidden" alt="Sign for spoken word">
+      <div id="voice-sign-container" class="tts-preview-container hidden">
+        <img id="voice-sign-image" class="tts-img hidden" alt="Sign for spoken word">
+        <video id="voice-sign-video" class="tts-video hidden" autoplay loop muted playsinline></video>
+        <p id="voice-sign-fallback" class="tts-fallback hidden">Animated sign not available</p>
+      </div>
     </div>
   </div>
 </section>
@@ -309,38 +332,52 @@
 <section id="gallery" class="section">
   <div class="container">
     <div class="section-header">
-      <h2 class="section-title">ISL Gesture Gallery</h2>
-      <p class="section-sub">Government initiative examples for Indian Sign Language</p>
+      <h2 class="section-title">Real User Feedback</h2>
+      <p class="section-sub">Real accessibility feedback from visually and hearing-speech impaired users who tested Signova in real-world scenarios.</p>
+      <p class="section-desc" style="max-width: 800px; margin: 15px auto 0; color: var(--text-muted); font-size: 1.05rem; line-height: 1.6;">
+        These users tested the Signova AI translator in real-time and shared valuable suggestions to improve accessibility, gesture recognition stability, and translation usability. Their feedback helped us enhance the system for better real-world communication.
+      </p>
     </div>
     <div class="gallery-grid">
+      <!-- Card 1 -->
       <div class="gallery-card">
         <div class="gallery-img-wrap">
-          <img src="https://placehold.co/400x260/0d1117/22d3ee?text=ISL+Greeting" onerror="this.src='https://placehold.co/400x260/0d1117/22d3ee?text=ISL+Gesture'" alt="ISL Greeting gesture" class="gallery-img">
-          <div class="gallery-overlay"><span>View Gesture</span></div>
+          <video class="gallery-video" muted playsinline loop preload="metadata">
+            <source src="/static/assets/FeedbackVideos/feedback1.mp4#t=0.1" type="video/mp4">
+          </video>
+          <div class="gallery-overlay"><span>🔎 View Fullscreen</span></div>
         </div>
         <div class="gallery-body">
-          <p class="gallery-label">ISL Gesture</p>
-          <h4>'Greeting'</h4>
+          <p class="gallery-label">Hearing &amp; Speech Impaired User</p>
+          <h4>Murliadhar Sir</h4>
         </div>
       </div>
+      
+      <!-- Card 2 -->
       <div class="gallery-card">
         <div class="gallery-img-wrap">
-          <img src="https://placehold.co/400x260/0d1117/a855f7?text=ISL+Help" onerror="this.src='https://placehold.co/400x260/0d1117/a855f7?text=ISL+Gesture'" alt="ISL Assistance gesture" class="gallery-img">
-          <div class="gallery-overlay"><span>View Gesture</span></div>
+          <video class="gallery-video" muted playsinline loop preload="metadata">
+            <source src="/static/assets/FeedbackVideos/feedback2.mp4#t=0.1" type="video/mp4">
+          </video>
+          <div class="gallery-overlay"><span>🔎 View Fullscreen</span></div>
         </div>
         <div class="gallery-body">
-          <p class="gallery-label">ISL Gesture</p>
-          <h4>'Assistance'</h4>
+          <p class="gallery-label">Vision Impaired User</p>
+          <h4>Arun Sir</h4>
         </div>
       </div>
+      
+      <!-- Card 3 -->
       <div class="gallery-card">
         <div class="gallery-img-wrap">
-          <img src="https://placehold.co/400x260/0d1117/22d3ee?text=ISL+Thanks" onerror="this.src='https://placehold.co/400x260/0d1117/22d3ee?text=ISL+Gesture'" alt="ISL Thank You gesture" class="gallery-img">
-          <div class="gallery-overlay"><span>View Gesture</span></div>
+          <video class="gallery-video" muted playsinline loop preload="metadata">
+            <source src="/static/assets/FeedbackVideos/feedback3.mp4#t=0.1" type="video/mp4">
+          </video>
+          <div class="gallery-overlay"><span>🔎 View Fullscreen</span></div>
         </div>
         <div class="gallery-body">
-          <p class="gallery-label">ISL Gesture</p>
-          <h4>'Thank You'</h4>
+          <p class="gallery-label">Real-time Signova Experience</p>
+          <h4>User Appreciation</h4>
         </div>
       </div>
     </div>
@@ -359,11 +396,27 @@
         <div class="contact-row">
           <div class="field-group">
             <label for="name">Full Name</label>
-            <input type="text" id="name" name="name" placeholder="Jane Doe" required>
+            <input type="text" id="name" name="name" placeholder="Satyam Dubey" required>
           </div>
           <div class="field-group">
             <label for="email">Email Address</label>
             <input type="email" id="email" name="email" placeholder="you@example.com" required>
+          </div>
+        </div>
+        <div class="contact-row">
+          <div class="field-group">
+            <label for="subject">Subject</label>
+            <input type="text" id="subject" name="subject" placeholder="What is this about?" required>
+          </div>
+          <div class="field-group">
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+              <option value="" disabled selected>Choose Category</option>
+              <option value="Feedback">Feedback</option>
+              <option value="Collaboration">Collaboration</option>
+              <option value="Accessibility Suggestion">Accessibility Suggestion</option>
+              <option value="Technical Support">Technical Support</option>
+            </select>
           </div>
         </div>
         <div class="field-group">
@@ -371,7 +424,7 @@
           <textarea id="message" name="message" rows="5" placeholder="Tell us about your project or question..." required></textarea>
         </div>
         <button type="submit" class="btn-primary btn-lg w-full" id="contact-submit">
-          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 00-2 2z"/></svg>
           Send Message
         </button>
         <p id="contact-message" class="form-msg hidden mt-3 text-center"></p>
@@ -382,30 +435,56 @@
 
 <!-- FOOTER -->
 <footer class="footer">
-  <div class="container footer-inner">
+  <div class="container footer-inner" style="grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 24px;">
     <div class="footer-brand">
-      <span class="brand-icon">⚡</span>
-      <span class="footer-name">Signova</span>
-      <p class="footer-tagline">Breaking barriers through AI-powered sign language translation.</p>
-    </div>
-    <div class="footer-links">
-      <a href="#translator">Translator</a>
-      <a href="#about">About</a>
-      <a href="#gallery">Gallery</a>
-      <a href="#contact">Contact</a>
-    </div>
-    <div class="footer-empowered">
-      <p class="empowered-label">Empowered by</p>
-      <div class="empowered-logos">
-        <img src="assets/images/DIB.jpg" alt="DIB" class="emp-logo">
-        <img src="assets/images/nic.png" alt="NIC" class="emp-logo">
+      <div style="display:flex; align-items:center;">
+        <span class="brand-icon">⚡</span>
+        <span class="footer-name">Signova</span>
       </div>
+      <p class="footer-tagline">Breaking communication barriers through real-time AI-powered Indian Sign Language translation.</p>
+    </div>
+    
+    <div class="footer-links">
+      <p class="empowered-label" style="margin-bottom:12px;">Core Services</p>
+      <a href="#translator">Translator Dashboard</a>
+      <a href="/sentence-mode">💬 Live Conversation</a>
+      <a href="/learn">🎓 Learn Hub</a>
+      <a href="/dashboard">📊 Progress Stats</a>
+      <a href="/ai-assistant">🤖 AI Mentor</a>
+    </div>
+
+    <div class="footer-links">
+      <p class="empowered-label" style="margin-bottom:12px;">Tech Stack</p>
+      <span style="font-size:0.8rem; color:var(--text-muted); line-height:1.8;">
+        • Python &amp; Flask<br>
+        • MediaPipe Holistic<br>
+        • LSTM Neural Network<br>
+        • SQLite Database<br>
+        • HTML5 / Pure CSS3
+      </span>
+    </div>
+
+    <div class="footer-links">
+      <p class="empowered-label" style="margin-bottom:12px;">Connect</p>
+      <a href="mailto:satyamdubey61@gmail.com" style="display:flex; align-items:center; gap:6px;">✉️ Support Email</a>
+      <a href="#contact" style="display:flex; align-items:center; gap:6px;">💬 Get in Touch</a>
+      <a href="https://www.linkedin.com/in/satyam-dubey-b534b4343" target="_blank" style="display:flex; align-items:center; gap:6px;">🔗 LinkedIn</a>
     </div>
   </div>
   <div class="footer-bottom">
-    <p>© 2026 Signova. All Rights Reserved. Last Updated: May 10, 2026 <br><span style="opacity: 0.7;">Developed by Satyam Dubey</span></p>
+    <p>© 2026 Signova | Last Updated: June 1, 2026 <br><span style="opacity: 0.85; font-weight:600; color:var(--cyan);">Developed by Satyam Dubey</span></p>
   </div>
 </footer>
+
+<!-- VIDEO FULLSCREEN MODAL -->
+<div id="video-modal" class="modal-overlay hidden" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; position: fixed; inset: 0; z-index: 1000; transition: opacity 0.3s ease;">
+  <div style="background: transparent; border: none; max-width: 900px; width: 90%; padding: 0; box-shadow: none; position: relative;">
+    <button id="video-modal-close" class="modal-close" style="top: -48px; right: 0; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 1.5rem; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; transition: background 0.2s;">&times;</button>
+    <div style="border-radius: 16px; overflow: hidden; background: #000; box-shadow: 0 10px 50px rgba(0,0,0,0.8); line-height: 0;">
+      <video id="modal-video-player" controls style="width: 100%; height: auto; max-height: 80vh; display: block;"></video>
+    </div>
+  </div>
+</div>
 
 <!-- TOAST -->
 <div id="global-toast" class="toast hidden">
@@ -421,6 +500,8 @@ document.getElementById('contact-form')?.addEventListener('submit', async (e) =>
   const msg = document.getElementById('contact-message');
   const name = document.getElementById('name').value.trim();
   const email = document.getElementById('email').value.trim();
+  const subject = document.getElementById('subject').value.trim();
+  const category = document.getElementById('category').value;
   const message = document.getElementById('message').value.trim();
   btn.textContent = 'Sending...';
   btn.disabled = true;
@@ -428,7 +509,7 @@ document.getElementById('contact-form')?.addEventListener('submit', async (e) =>
     const res = await fetch('/api/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, message })
+      body: JSON.stringify({ name, email, subject, category, message })
     });
     const data = await res.json();
     msg.textContent = data.message;

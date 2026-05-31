@@ -1,0 +1,11 @@
+0: A
+1: C
+2: Hello
+3: Help
+4: I
+5: ILoveYou
+6: No
+7: Sorry
+8: ThankYou
+9: V
+10: Yes

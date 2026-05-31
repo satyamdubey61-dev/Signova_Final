@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signova — Progress Dashboard</title>
+  <meta name="description" content="Signova Progress Dashboard — Monitor your learning analytics, streaks, gesture accuracy trends, and unlock accessibility badges.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <!-- Load lightweight Chart.js CDN for beautiful interactive charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dashboard-body">
+
+<!-- Unified Navbar -->
+<header class="navbar" id="navbar">
+  <div class="navbar-inner">
+    <a href="/" class="navbar-brand">
+      <span class="brand-icon">⚡</span>
+      Signova
+    </a>
+    <nav class="navbar-nav">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/learn" class="nav-link" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+      <a href="/dashboard" class="nav-link active" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+      <a href="/ai-assistant" class="nav-link" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+      <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;" id="nav-live-conversation">💬 Live Conversation</a>
+    </nav>
+    <div class="navbar-actions">
+      <button id="profile-btn" class="btn-ghost">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Profile
+      </button>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-nav hidden" id="mobile-nav">
+    <a href="/" class="nav-link">Home</a>
+    <a href="/learn" class="nav-link" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+    <a href="/dashboard" class="nav-link" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+    <a href="/ai-assistant" class="nav-link" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+    <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;">💬 Live Conversation</a>
+  </div>
+</header>
+
+<main class="container page-content">
+  <!-- Page Header -->
+  <section class="db-header">
+    <div class="category-badge">📊 Analytics Workspace</div>
+    <h1 class="page-title">Your Learning Dashboard</h1>
+    <p class="page-sub">
+      Track your milestones, review accuracy progress, and unlock achievements as you construct 
+      your path to Indian Sign Language mastery.
+    </p>
+  </section>
+
+  <!-- Metrics Grid -->
+  <section class="metrics-grid">
+    <!-- Stat card 1 -->
+    <div class="stat-card card-glow" style="position: relative;">
+      <div class="stat-header">
+        <span class="icon">🔥</span>
+        <h3>Practice Streak</h3>
+        <button id="reset-streak-btn" onclick="resetPracticeStreak()" class="btn-reset-streak" title="Reset Streak" style="background: none; border: none; color: var(--text-muted); opacity: 0.3; cursor: pointer; position: absolute; top: 12px; right: 12px; font-size: 0.85rem; transition: opacity 0.2s;">
+          🔄
+        </button>
+      </div>
+      <div class="stat-value" id="db-streak-val">0 Days</div>
+      <p class="stat-desc">Keep practicing daily to build muscle memory!</p>
+    </div>
+
+    <!-- Stat card 2 -->
+    <div class="stat-card card-glow">
+      <div class="stat-header">
+        <span class="icon">🎯</span>
+        <h3>Average Accuracy</h3>
+      </div>
+      <div class="stat-value" id="db-accuracy-val">92.5%</div>
+      <p class="stat-desc">Based on real-time MediaPipe validation logs.</p>
+    </div>
+
+    <!-- Stat card 3 -->
+    <div class="stat-card card-glow">
+      <div class="stat-header">
+        <span class="icon">🤟</span>
+        <h3>Signs Mastered</h3>
+      </div>
+      <div class="stat-value" id="db-cards-val">4 / 11</div>
+      <p class="stat-desc">Includes trained alphabets and common words.</p>
+    </div>
+
+    <!-- Stat card 4 -->
+    <div class="stat-card card-glow">
+      <div class="stat-header">
+        <span class="icon">📝</span>
+        <h3>Quizzes Completed</h3>
+      </div>
+      <div class="stat-value" id="db-quizzes-val">2</div>
+      <p class="stat-desc">Evaluations taken in Gamified Quiz Mode.</p>
+    </div>
+  </section>
+
+  <!-- Charts & Timeline Grid -->
+  <section class="db-details-grid">
+    <!-- Progress Chart Card -->
+    <div class="chart-card card-glow">
+      <div class="card-header">
+        <h3>ISL Accuracy Trend</h3>
+        <span class="card-subtitle">Real-time posture scores over recent practices</span>
+      </div>
+      <div class="chart-viewport">
+        <canvas id="accuracyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Achievements & Badges Sidebar -->
+    <div class="badges-card card-glow">
+      <div class="card-header">
+        <h3>Unlocked Achievements</h3>
+        <span class="card-subtitle">Complete lessons & quizzes to unlock honors</span>
+      </div>
+      
+      <div class="badges-list" id="badges-list-container">
+        <!-- Dynnamically rendered badges -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Activity Timeline Section -->
+  <section class="timeline-section card-glow">
+    <div class="card-header">
+      <h3>Recent Learning History</h3>
+      <span class="card-subtitle">Your structured lessons and interactive milestones</span>
+    </div>
+    
+    <div class="timeline-container" id="timeline-list">
+      <!-- Generated Dynamically -->
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="brand-icon">⚡</span>
+      <span class="footer-name">Signova</span>
+      <p class="footer-tagline">Breaking barriers through AI-powered sign language translation.</p>
+    </div>
+    <div class="footer-links">
+      <a href="/learn">Learn Hub</a>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/ai-assistant">AI Mentor</a>
+      <a href="/sentence-mode">Live Conversation</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 Signova. Developed by Satyam Dubey</p>
+  </div>
+</footer>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -33,10 +33,10 @@ const State = {
         displayedLabel: '',       // currently rendered label on screen
         holdActive: false,        // true while a prediction is being held on screen
         holdTimer: null,          // timer reference for the hold duration
-        holdDurationMs: 700,      // minimum ms a prediction stays displayed
+        holdDurationMs: 400,      // minimum ms a prediction stays displayed (optimized down from 700)
         cooldownActive: false,    // true while gesture-switch cooldown is active
         cooldownTimer: null,      // timer reference for cooldown
-        cooldownMs: 500,          // minimum ms between gesture switches
+        cooldownMs: 300,          // minimum ms between gesture switches (optimized down from 500)
         debounceThreshold: 2,     // consecutive frames needed before accepting new label
     },
 
@@ -57,8 +57,8 @@ const State = {
         if (this.ui.holdTimer) clearTimeout(this.ui.holdTimer);
         if (this.ui.cooldownTimer) clearTimeout(this.ui.cooldownTimer);
         this.ui = {
-            displayedLabel: '', holdActive: false, holdTimer: null, holdDurationMs: 700,
-            cooldownActive: false, cooldownTimer: null, cooldownMs: 500, debounceThreshold: 2,
+            displayedLabel: '', holdActive: false, holdTimer: null, holdDurationMs: 400,
+            cooldownActive: false, cooldownTimer: null, cooldownMs: 300, debounceThreshold: 2,
         };
         this._locks.clear();
         window.lastRecognizedText = '';
@@ -109,8 +109,96 @@ const setMsg = (el, msg, isErr = true) => {
 // ====================================================
 // SPEECH ENGINE
 // ====================================================
+window.speakEnglishOutput = function(text) {
+    return new Promise((resolve) => {
+        if (!text || !('speechSynthesis' in window)) {
+            resolve();
+            return;
+        }
+
+        // cancel active speech to prevent stacking/overlaps
+        window.speechSynthesis.cancel();
+
+        // clean label e.g. HELLO (90%) -> HELLO
+        const cleanText = text.replace(/\s*\(\d+%\)/g, '').trim();
+        if (!cleanText) {
+            resolve();
+            return;
+        }
+
+        const u = new SpeechSynthesisUtterance(cleanText);
+        u.rate = 1; u.pitch = 1; u.volume = 1; u.lang = 'en-US';
+
+        const wf = $('voice-waveform');
+        State.speech.speaking = true;
+        if (wf) wf.classList.remove('hidden');
+
+        let resolved = false;
+        const finish = () => {
+            if (resolved) return;
+            resolved = true;
+            State.speech.speaking = false;
+            if (wf) wf.classList.add('hidden');
+            resolve();
+        };
+
+        u.onend = finish;
+        u.onerror = finish;
+
+        window.speechSynthesis.speak(u);
+
+        // Update the Voice Output box in the UI immediately
+        const out = $('voice-output');
+        if (out) out.textContent = cleanText;
+    });
+};
+
+window.speakTranslatedOutput = function(text, language) {
+    return new Promise((resolve) => {
+        if (!text || !('speechSynthesis' in window)) {
+            resolve();
+            return;
+        }
+
+        // Map standard ISO SpeechSynthesis accents
+        const langMap = {
+            english: 'en-US',
+            hindi: 'hi-IN',
+            marathi: 'mr-IN',
+            konkani: 'hi-IN',
+            tamil: 'ta-IN',
+            punjabi: 'pa-IN',
+            gujarati: 'gu-IN',
+            bhojpuri: 'hi-IN'
+        };
+
+        const locale = langMap[language?.toLowerCase()] || 'en-US';
+
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 1; u.pitch = 1; u.volume = 1; u.lang = locale;
+
+        const wf = $('voice-waveform');
+        State.speech.speaking = true;
+        if (wf) wf.classList.remove('hidden');
+
+        let resolved = false;
+        const finish = () => {
+            if (resolved) return;
+            resolved = true;
+            State.speech.speaking = false;
+            if (wf) wf.classList.add('hidden');
+            resolve();
+        };
+
+        u.onend = finish;
+        u.onerror = finish;
+
+        window.speechSynthesis.speak(u);
+    });
+};
+
 const SpeechEngine = {
-    COOLDOWN_MS: 1200,
+    COOLDOWN_MS: 1000,
     STABLE_THRESHOLD: 2,
     permissionGranted: false,
 
@@ -123,34 +211,61 @@ const SpeechEngine = {
     },
 
     speak(text, lang = 'en-IN', silentUpdate = false) {
-        const out = $('voice-output'), wf = $('voice-waveform');
-        if (!('speechSynthesis' in window)) return;
-        window.speechSynthesis.cancel();
-        
-        // Strip out any confidence percentage suffix (e.g. "Hello (90%)" -> "Hello")
-        const cleanText = text.replace(/\s*\(\d+%\)/g, '');
-        
-        const u = new SpeechSynthesisUtterance(cleanText);
-        u.rate = 1; u.pitch = 1; u.volume = 1; u.lang = lang;
-        State.speech.speaking = true;
-        if (wf) wf.classList.remove('hidden');
-        u.onend = u.onerror = () => { State.speech.speaking = false; if (wf) wf.classList.add('hidden'); };
-        window.speechSynthesis.speak(u);
-        if (!silentUpdate && out) out.textContent = text;
+        // Fallback speak interface for backward compatibility
+        window.speakEnglishOutput(text);
     },
 
-    tryAutoSpeak(label) {
+    async tryAutoSpeak(label) {
         if (!label || label.includes('ANALYZING') || label.includes('CONFIDENCE') || label.includes('DETECTED') || label.includes('No hand')) return;
         const s = State.speech;
-        // Only speak when the stable prediction actually CHANGES
+        // Only speak when the stable prediction actually CHANGES or cooldown is cleared
         if (s.cooldown || label === s.lastSpoken) return;
         if (State.recognition.stableCount >= this.STABLE_THRESHOLD) {
             s.cooldown = true;
             s.lastSpoken = label;
-            console.log('[Speech] Speaking:', label);
-            this.speak(label);
+            
             if (s.cooldownTimer) clearTimeout(s.cooldownTimer);
-            s.cooldownTimer = setTimeout(() => { s.cooldown = false; }, this.COOLDOWN_MS);
+            s.cooldownTimer = setTimeout(() => { s.cooldown = false; }, 2000); // 2s professional cooldown
+
+            const selectedLang = $('translate-lang')?.value;
+            const translateResultBox = $('translate-result');
+
+            // 1. Cancel previous speech immediately
+            window.speechSynthesis.cancel();
+
+            // 2. Speak English output first, and wait until it completes!
+            await window.speakEnglishOutput(label);
+
+            // 3. Translation processing - only after English completes!
+            if (selectedLang && selectedLang !== 'english') {
+                console.log(`[Translation Flow] Translating "${label}" to "${selectedLang}"...`);
+                try {
+                    const res = await fetch(API.translate, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: label, language: selectedLang })
+                    });
+                    const d = await res.json();
+                    
+                    if (d.success) {
+                        // Update translation box after English speech completes
+                        const outputText = `${label} ↓ ${d.translated}`;
+                        if (translateResultBox) {
+                            translateResultBox.textContent = outputText;
+                            translateResultBox.classList.add('translated-highlight'); 
+                            setTimeout(() => translateResultBox.classList.remove('translated-highlight'), 1000);
+                        }
+
+                        // Professional delay (350ms) for natural AI assistant feel
+                        await new Promise(r => setTimeout(r, 350));
+
+                        // Play translated language audio
+                        await window.speakTranslatedOutput(d.translated, selectedLang);
+                    }
+                } catch (e) {
+                    console.error("Auto translation failed:", e);
+                }
+            }
         }
     },
 
@@ -202,6 +317,7 @@ const Camera = {
 const Recognition = {
     START_SVG: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Start Recognition',
     STOP_SVG: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" stroke-width="2"/></svg> Stop Recognition',
+    _isProcessing: false,  // lock to prevent overlapping API requests
 
     async start() {
         const r = State.recognition;
@@ -229,8 +345,9 @@ const Recognition = {
         $('cam-status-dot')?.classList.add('active');
 
         State.unlock('recognition');
+        this._isProcessing = false;
         await this._capture();
-        r.intervalId = setInterval(() => this._capture(), 100);
+        r.intervalId = setInterval(() => this._capture(), 80);
     },
 
     stop() {
@@ -276,18 +393,39 @@ const Recognition = {
     },
 
     async _capture() {
+        // Processing lock — prevent overlapping async API requests
+        if (this._isProcessing) {
+            console.log('[Capture] Skipped — previous request still in flight');
+            return;
+        }
+
         const vid = $('video'), r = State.recognition, ui = State.ui;
         if (!vid || vid.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !r.running) return;
 
+        this._isProcessing = true;
+
         const c = document.createElement('canvas');
-        c.width = vid.videoWidth || 300; c.height = vid.videoHeight || 300;
+        // Downscale image to max 320px dimension to shrink base64 payloads by 90%+ for 10x faster transfer & inference
+        const maxDim = 320;
+        let w = vid.videoWidth || 320;
+        let h = vid.videoHeight || 240;
+        if (w > maxDim || h > maxDim) {
+            if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+            } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+            }
+        }
+        c.width = w; c.height = h;
         c.getContext('2d').drawImage(vid, 0, 0, c.width, c.height);
         const data = c.toDataURL('image/jpeg', 0.8);
 
-        // ── Only show ANALYZING if nothing is currently held on screen ──
+        // ── Only show SCANNING if nothing is currently held on screen ──
         const st = $('cam-status-text');
         if (!ui.holdActive && !ui.displayedLabel) {
-            if (st) st.textContent = 'ANALYZING...';
+            if (st) st.textContent = 'SCANNING';
         }
 
         try {
@@ -322,8 +460,10 @@ const Recognition = {
                 }
                 r.lastLabel = cleanLabel;
 
-                // ── Debounce: require N consecutive identical frames ──
-                if (r.stableCount < ui.debounceThreshold) {
+                const isHighlyConfident = confidence > 85;
+
+                // ── Debounce: require N consecutive identical frames (bypassed if highly confident) ──
+                if (!isHighlyConfident && r.stableCount < ui.debounceThreshold) {
                     console.log(`[Predict] REJECTED — debounce: need ${ui.debounceThreshold} frames, have ${r.stableCount}`);
                     // During debounce, if we already have something displayed, keep it
                     // If nothing displayed yet, show the incoming label immediately (first detection)
@@ -336,8 +476,8 @@ const Recognition = {
                     return;
                 }
 
-                // ── Cooldown: prevent switching gestures faster than cooldownMs ──
-                if (ui.cooldownActive && cleanLabel !== ui.displayedLabel) {
+                // ── Cooldown: prevent switching gestures faster than cooldownMs (bypassed if highly confident) ──
+                if (!isHighlyConfident && ui.cooldownActive && cleanLabel !== ui.displayedLabel) {
                     console.log(`[Predict] REJECTED — cooldown active, cannot switch from "${ui.displayedLabel}" to "${cleanLabel}"`);
                     return;
                 }
@@ -367,6 +507,8 @@ const Recognition = {
                 }
                 if (st) { st.textContent = 'DETECTED'; st.classList.add('active'); }
                 if (vo) vo.textContent = cleanLabel;
+
+
 
                 // ── Hold: keep this prediction displayed for holdDurationMs ──
                 if (ui.holdTimer) clearTimeout(ui.holdTimer);
@@ -402,6 +544,7 @@ const Recognition = {
                     if (pb) pb.style.width = '0';
                     if (st) { st.textContent = 'SCANNING'; st.classList.add('active'); }
                     ui.displayedLabel = '';
+                    // Do NOT clear translate-result here — let manual translations persist
                 }
                 r.stableCount = 0; r.stableLabel = '';
                 console.log('[Predict] No hand — backend confirmed zero hands');
@@ -424,6 +567,8 @@ const Recognition = {
             if (!ui.holdActive) {
                 const tt = $('translated-text'); if (tt) tt.textContent = 'Error contacting server.';
             }
+        } finally {
+            this._isProcessing = false;
         }
     }
 };
@@ -459,6 +604,7 @@ const Auth = {
         Recognition.stop();
         State.reset();
         localStorage.removeItem('signova_user');
+        sessionStorage.removeItem('signova_user');
         fetch('/api/logout', { method: 'POST' }).catch(() => {});
         this._updateNavbar(false);
         showToast('Logged out successfully.');
@@ -484,14 +630,32 @@ const Auth = {
 // DOM READY — Wire events
 // ====================================================
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Track Practice Streak Activity ---
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    let practiceDays = [];
+    try {
+        const stored = localStorage.getItem("signova_practice_days");
+        practiceDays = stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        practiceDays = [];
+    }
+    if (!Array.isArray(practiceDays)) practiceDays = [];
+
+    if (!practiceDays.includes(todayStr)) {
+        practiceDays.push(todayStr);
+        localStorage.setItem("signova_practice_days", JSON.stringify(practiceDays));
+        localStorage.setItem("signova_streak", practiceDays.length);
+    }
+
     // Auto-login persistence check
-    const savedUser = localStorage.getItem('signova_user');
+    const savedUser = localStorage.getItem('signova_user') || sessionStorage.getItem('signova_user');
     if (savedUser) {
         try {
             State.auth.user = JSON.parse(savedUser);
             Auth._updateNavbar(true);
         } catch (e) {
             localStorage.removeItem('signova_user');
+            sessionStorage.removeItem('signova_user');
         }
     }
 
@@ -524,11 +688,20 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const msg = $('login-message');
         const em = $('login-email')?.value.trim(), pw = $('login-password')?.value;
+        const remember = $('login-remember')?.checked;
         if (!em || !pw) { setMsg(msg, 'Email and password required.'); return; }
         const r = await Auth.login(em, pw);
         if (!r?.success) { setMsg(msg, r?.message || 'Login failed.'); return; }
         setMsg(msg, 'Login successful!', false);
-        localStorage.setItem('signova_user', JSON.stringify(r.user));
+        
+        if (remember) {
+            localStorage.setItem('signova_user', JSON.stringify(r.user));
+            sessionStorage.removeItem('signova_user');
+        } else {
+            sessionStorage.setItem('signova_user', JSON.stringify(r.user));
+            localStorage.removeItem('signova_user');
+        }
+        
         Auth._updateNavbar(true);
         setTimeout(() => hideModal($('login-modal')), 1000);
     });
@@ -570,6 +743,8 @@ document.addEventListener('DOMContentLoaded', () => {
         SpeechEngine.speak(t);
     });
 
+
+
     // --- Text to Sign ---
     $('text-to-sign-btn')?.addEventListener('click', async () => {
         if (State.isLocked('textToSign')) return;
@@ -577,17 +752,52 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!word) { showToast('Please enter a word.'); return; }
         State.lock('textToSign');
         if (btn) { btn.disabled = true; btn.textContent = 'Searching...'; }
+        
+        const container = $('text-sign-container');
+        const img = $('text-sign-image');
+        const vid = $('text-sign-video');
+        const fb = $('text-sign-fallback');
+        
+        if (container) container.classList.remove('hidden');
+
         try {
             const res = await fetch(API.textToSign, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: word }) });
-            if (!res.ok) { const e = await res.json().catch(() => ({})); showToast(e.message || `"${word}" not found.`); $('text-sign-image')?.classList.add('hidden'); $('text-sign-status')?.classList.add('hidden'); }
-            else {
-                const url = URL.createObjectURL(await res.blob());
-                const img = $('text-sign-image'); if (img) { img.src = url; img.classList.remove('hidden'); }
+            const d = await res.json();
+            
+            if (!res.ok || !d.success) {
+                if (img) img.classList.add('hidden');
+                if (vid) vid.classList.add('hidden');
+                if (fb) {
+                    fb.textContent = 'Animated sign not available';
+                    fb.classList.remove('hidden');
+                }
+                const w = $('text-sign-word'); if (w) w.textContent = word;
+                $('text-sign-status')?.classList.remove('hidden');
+            } else {
+                if (fb) fb.classList.add('hidden');
+                if (d.type === 'video') {
+                    if (img) img.classList.add('hidden');
+                    if (vid) {
+                        vid.src = d.url;
+                        vid.load();
+                        vid.classList.remove('hidden');
+                        vid.play().catch(e => console.log('Video autoplay blocked:', e));
+                    }
+                } else {
+                    if (vid) vid.classList.add('hidden');
+                    if (img) {
+                        img.src = d.url;
+                        img.classList.remove('hidden');
+                    }
+                }
                 const w = $('text-sign-word'); if (w) w.textContent = word;
                 $('text-sign-status')?.classList.remove('hidden');
                 SpeechEngine.speak(word, 'en-IN', true);
             }
-        } catch { showToast('Error connecting to backend.'); }
+        } catch (err) {
+            console.error(err);
+            showToast('Error connecting to backend.');
+        }
         if (btn) { btn.disabled = false; btn.textContent = 'Show Sign'; }
         State.unlock('textToSign');
     });
@@ -618,14 +828,47 @@ document.addEventListener('DOMContentLoaded', () => {
             txt = txt.replace(/[.,!?]+$/, ''); // normalize punctuation
             if (btn) btn.textContent = `Heard: "${txt}"`;
             SpeechEngine.speak(txt, 'en-IN', true);
+            
+            const container = $('voice-sign-container');
+            const img = $('voice-sign-image');
+            const vid = $('voice-sign-video');
+            const fb = $('voice-sign-fallback');
+            
+            if (container) container.classList.remove('hidden');
+            
             try {
                 const res = await fetch(API.textToSign, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: txt }) });
-                if (!res.ok) { showToast(`"${txt}" not found.`); $('voice-sign-image')?.classList.add('hidden'); }
-                else { 
-                    const img = $('voice-sign-image'); 
-                    if (img) { img.src = URL.createObjectURL(await res.blob()); img.classList.remove('hidden'); } 
+                const d = await res.json();
+                
+                if (!res.ok || !d.success) {
+                    if (img) img.classList.add('hidden');
+                    if (vid) vid.classList.add('hidden');
+                    if (fb) {
+                        fb.textContent = 'Animated sign not available';
+                        fb.classList.remove('hidden');
+                    }
+                } else {
+                    if (fb) fb.classList.add('hidden');
+                    if (d.type === 'video') {
+                        if (img) img.classList.add('hidden');
+                        if (vid) {
+                            vid.src = d.url;
+                            vid.load();
+                            vid.classList.remove('hidden');
+                            vid.play().catch(e => console.log('Video autoplay blocked:', e));
+                        }
+                    } else {
+                        if (vid) vid.classList.add('hidden');
+                        if (img) {
+                            img.src = d.url;
+                            img.classList.remove('hidden');
+                        }
+                    }
                 }
-            } catch { showToast('Backend error.'); }
+            } catch (err) {
+                console.error(err);
+                showToast('Backend error.');
+            }
             resetBtn();
         };
         rec.onerror = (ev) => { showToast(`Voice error: ${ev.error}`); resetBtn(); };
@@ -650,13 +893,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (d.success) { 
                     out.classList.add('translated-highlight'); 
                     setTimeout(() => out.classList.remove('translated-highlight'), 1000); 
-                    const langMap = { english: 'en-IN', hindi: 'hi-IN', marathi: 'mr-IN', konkani: 'hi-IN', tamil: 'ta-IN' };
-                    SpeechEngine.speak(d.translated, langMap[lang] || 'en-IN', true);
+                    
+                    // Cancel active speech, then wait 350ms, then speak translated output sequentially
+                    window.speechSynthesis.cancel();
+                    await new Promise(r => setTimeout(r, 350));
+                    await window.speakTranslatedOutput(d.translated, lang);
                 } 
             }
         } catch { if (out) out.textContent = 'Network error.'; }
         if (btn) { btn.disabled = false; btn.textContent = 'Translate'; }
         State.translation.busy = false;
+    });
+
+    // --- Video Modal Controls ---
+    const vModal = document.getElementById('video-modal');
+    const vPlayer = document.getElementById('modal-video-player');
+    const vClose = document.getElementById('video-modal-close');
+
+    const closeVideoModal = () => {
+        if (vModal) {
+            vModal.classList.add('hidden');
+            vModal.style.opacity = '0';
+        }
+        if (vPlayer) {
+            vPlayer.pause();
+            vPlayer.src = '';
+        }
+    };
+
+    if (vClose) vClose.addEventListener('click', closeVideoModal);
+    if (vModal) {
+        vModal.addEventListener('click', (e) => {
+            if (e.target === vModal) closeVideoModal();
+        });
+    }
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && vModal && !vModal.classList.contains('hidden')) {
+            closeVideoModal();
+        }
+    });
+
+    // --- Gallery Video Hover & Click Autoplay Logic ---
+    document.querySelectorAll('.gallery-card').forEach(card => {
+        const video = card.querySelector('.gallery-video');
+        const overlaySpan = card.querySelector('.gallery-overlay span');
+        if (video) {
+            video.muted = true; // start muted by default
+            
+            card.addEventListener('mouseenter', () => {
+                if (video.paused) {
+                    video.muted = true;
+                    video.play().catch(err => {
+                        console.log("[Gallery] Muted autoplay blocked or interrupted:", err);
+                    });
+                }
+            });
+
+            card.addEventListener('mouseleave', () => {
+                video.pause();
+                video.currentTime = 0;
+                video.muted = true;
+                if (overlaySpan) overlaySpan.textContent = '🔎 View Fullscreen';
+            });
+
+            card.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Pause preview
+                video.pause();
+                
+                // Fetch clean source without t=0.1 frame query
+                const sourceElement = video.querySelector('source');
+                if (sourceElement && vModal && vPlayer) {
+                    const videoSrc = sourceElement.getAttribute('src').split('#')[0];
+                    vPlayer.src = videoSrc;
+                    vPlayer.muted = false; // Enable sound!
+                    vModal.classList.remove('hidden');
+                    vModal.style.opacity = '1';
+                    vPlayer.load();
+                    vPlayer.play().catch(err => {
+                        console.log("[Modal Video] Play blocked by browser policy:", err);
+                    });
+                }
+            });
+        }
     });
 
     // --- Smooth scroll ---

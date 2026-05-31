@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signova — Live Conversation Mode</title>
+  <meta name="description" content="Signova Live Sentence Conversation Mode — AI-powered real-time sign language sentence detection with instant subtitle overlay, gesture-end detection, and speech output.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sentence_mode.css') }}">
+</head>
+<body class="sentence-mode-body">
+
+<!-- Hidden canvas for frame capture (not displayed) -->
+<canvas id="sm-capture-canvas" style="display:none;" aria-hidden="true"></canvas>
+
+<!-- ════════════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════════ -->
+<nav class="sm-navbar" id="sm-navbar" role="navigation" aria-label="Sentence mode navigation">
+  <a href="/" class="sm-brand" aria-label="Signova home">
+    <span class="brand-icon" aria-hidden="true">⚡</span>
+    Signova
+  </a>
+
+  <div class="sm-nav-links">
+    <a href="/" class="sm-nav-link" id="nav-home">Home</a>
+    <a href="/learn" class="sm-nav-link" style="color:#fbbf24;">🎓 Learn</a>
+    <a href="/dashboard" class="sm-nav-link" style="color:#4ade80;">📊 Dashboard</a>
+    <a href="/ai-assistant" class="sm-nav-link" style="color:#a855f7;">🤖 AI Mentor</a>
+    <a href="/sentence-mode" class="sm-nav-link active" style="color:#22d3ee;font-weight:600;" aria-current="page">💬 Live Conversation</a>
+  </div>
+
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <div class="sm-status-badge" role="status" aria-live="polite">
+      <div class="sm-status-dot" id="sm-nav-status-dot" aria-hidden="true"></div>
+      <span id="sm-nav-status-text">OFFLINE</span>
+    </div>
+    <div class="sm-status-badge" id="sm-mic-status-badge" role="status" aria-live="polite" style="border-color: rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); transition: border-color 0.25s;">
+      <span id="sm-mic-status-icon">🔴</span>
+      <span id="sm-mic-status-text">OFFLINE</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     PAGE BODY
+════════════════════════════════════════════ -->
+<main class="sm-page" role="main">
+  <div class="sm-container">
+
+    <!-- Page Header -->
+    <header class="sm-page-header">
+      <div class="sm-mode-badge" aria-label="Mode indicator">
+        <span class="badge-dot" aria-hidden="true"></span>
+        AI · Real-Time · Gesture-End Detection
+      </div>
+      <h1 class="sm-page-title">Live Sentence Conversation</h1>
+      <p class="sm-page-sub">
+        Sign full sentences — Signova instantly detects motion end, speaks, and remembers them.
+      </p>
+    </header>
+
+    <!-- Model Status Banner -->
+    <div class="sm-model-banner hidden" id="sm-model-banner" role="alert" aria-live="polite">
+      <span aria-hidden="true">🤖</span>
+      <span id="sm-model-banner-text">Checking sentence model status...</span>
+    </div>
+
+    <!-- ── Main 2-Column Grid ─────────────────────────────── -->
+    <div class="sm-main-grid">
+
+      <!-- ══════════════════════════════
+           LEFT COLUMN — Camera
+      ══════════════════════════════ -->
+      <div class="sm-left-col">
+
+        <!-- Webcam Card -->
+        <div class="sm-webcam-card" role="region" aria-label="Camera feed">
+
+          <!-- Webcam header bar -->
+          <div class="sm-webcam-header">
+            <div class="sm-webcam-title">
+              <span aria-hidden="true">📷</span>
+              Live Camera Feed
+            </div>
+            <div class="sm-webcam-indicators">
+              <div class="sm-indicator live" id="sm-live-badge" aria-live="polite">
+                <div class="sm-ind-dot" id="sm-status-dot" aria-hidden="true"></div>
+                <span id="sm-cam-status-text">OFFLINE</span>
+              </div>
+              <div class="sm-indicator">
+                <div class="sm-ind-dot" style="background:#475569"></div>
+                <span>AI</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Camera viewport -->
+          <div class="sm-camera-wrap" id="sm-camera-wrap">
+            <video id="sm-video" autoplay playsinline muted
+                   aria-label="Live webcam feed" style="transform: scaleX(-1);"></video>
+
+            <!-- Corner brackets -->
+            <div class="sm-corner tl" aria-hidden="true"></div>
+            <div class="sm-corner tr" aria-hidden="true"></div>
+            <div class="sm-corner bl" aria-hidden="true"></div>
+            <div class="sm-corner br" aria-hidden="true"></div>
+
+            <!-- Scanning line animation -->
+            <div class="sm-scan-line" id="sm-scan-line" aria-hidden="true"></div>
+
+            <!-- Offline overlay -->
+            <div class="sm-cam-overlay" id="sm-cam-overlay" role="presentation">
+              <div class="sm-cam-icon" aria-hidden="true">🎥</div>
+              <p>Click <strong>Start Conversation</strong> to activate your camera<br>and begin real-time sentence detection.</p>
+            </div>
+
+            <!-- ── CINEMATIC SUBTITLE OVERLAY ── -->
+            <div class="sm-subtitle-overlay" id="sm-subtitle-overlay"
+                 aria-live="polite" aria-label="Detected sentence subtitle">
+              <div class="sm-subtitle-sentence waiting" id="sm-subtitle-sentence">
+                Waiting for conversation...
+              </div>
+              <div class="sm-subtitle-meta">
+                <div class="sm-conf-pill" id="sm-conf-pill">
+                  <span aria-hidden="true">📊</span>
+                  <span id="sm-conf-pill-val">0</span>% Confidence
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Confidence bar (bottom edge of webcam) -->
+          <div class="sm-conf-bar-wrap" aria-hidden="true">
+            <div class="sm-conf-bar-fill" id="sm-conf-bar-fill"></div>
+          </div>
+        </div>
+
+        <!-- Start/Stop Button -->
+        <button id="sm-start-btn" class="sm-start-btn" aria-label="Start or stop conversation mode">
+          <span aria-hidden="true">▶</span>
+          Start Conversation
+        </button>
+
+        <!-- Bottom Action Row -->
+        <div class="sm-glass-card" role="region" aria-label="Conversation controls">
+          <div class="sm-card-header">
+            <div class="sm-card-title">
+              <span class="sm-card-icon" aria-hidden="true">🎛️</span>
+              Controls
+            </div>
+          </div>
+          <div class="sm-action-buttons">
+            <button id="sm-clear-btn" class="sm-action-btn danger"
+                    aria-label="Clear conversation history"
+                    title="Clear all sentence history">
+              <span aria-hidden="true">🗑️</span> Clear
+            </button>
+            <button id="sm-speak-again-btn" class="sm-action-btn green"
+                    aria-label="Speak the last detected sentence again"
+                    title="Speak the last detected sentence again">
+              <span aria-hidden="true">🔊</span> Speak Again
+            </button>
+            <button id="sm-copy-btn" class="sm-action-btn"
+                    aria-label="Copy conversation to clipboard"
+                    title="Copy conversation to clipboard">
+              <span aria-hidden="true">📋</span> Copy
+            </button>
+            <button id="sm-noop-btn" class="sm-action-btn purple" disabled
+                    style="cursor:default; opacity:0.45;">
+              <span aria-hidden="true">💬</span> Sentence Mode
+            </button>
+          </div>
+
+          <!-- Export Buttons -->
+          <div class="sm-export-row">
+            <button id="sm-export-txt-btn" class="sm-export-btn"
+                    aria-label="Export conversation as text file">
+              📄 Export TXT
+            </button>
+            <button id="sm-export-pdf-btn" class="sm-export-btn"
+                    aria-label="Export conversation as PDF">
+              📑 Export PDF
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /.sm-left-col -->
+
+      <!-- ══════════════════════════════
+           RIGHT COLUMN — Detection Panel
+      ══════════════════════════════ -->
+      <div class="sm-right-col">
+
+        <!-- ── Live Detected Sentence ── -->
+        <div class="sm-glass-card sm-live-sentence-card"
+             role="region" aria-label="Live detected sentence">
+          <div class="sm-card-header">
+            <div class="sm-card-title">
+              <span class="sm-card-icon" aria-hidden="true">🤟</span>
+              Detected Sentence
+            </div>
+            <div class="sm-conf-pill visible" style="opacity:1; font-size:0.72rem;">
+              LIVE
+            </div>
+          </div>
+
+          <!-- Main sentence display -->
+          <div class="sm-sentence-display" aria-live="polite">
+            <div class="sm-sentence-text waiting-state" id="sm-sentence-text">
+              Waiting for conversation...
+            </div>
+          </div>
+
+          <!-- Confidence bar -->
+          <div class="sm-conf-section">
+            <div class="sm-conf-label">
+              <span>Confidence</span>
+              <span class="sm-conf-value" id="sm-conf-value">0.0%</span>
+            </div>
+            <div class="sm-conf-track" role="progressbar"
+                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"
+                 aria-label="Detection confidence">
+              <div class="sm-conf-progress" id="sm-conf-progress"></div>
+            </div>
+          </div>
+
+          <!-- Speech indicator -->
+          <div class="sm-speech-status" id="sm-speech-status" role="status" aria-live="polite">
+            <div class="sm-speech-waves" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <span class="sm-speech-text" id="sm-speech-text-label">Speaking sentence...</span>
+          </div>
+        </div>
+
+        <!-- ── How It Works ── -->
+        <div class="sm-glass-card" role="complementary" aria-label="Usage instructions">
+          <div class="sm-card-header">
+            <div class="sm-card-title">
+              <span class="sm-card-icon" aria-hidden="true">💡</span>
+              How It Works
+            </div>
+          </div>
+          <div class="sm-card-body" style="padding-bottom:14px;">
+            <ol style="padding-left:18px; color:var(--text-secondary); font-size:0.83rem; line-height:2;">
+              <li>Click <strong style="color:var(--cyan)">Start Conversation</strong></li>
+              <li>Sign a <strong style="color:var(--cyan)">full sentence</strong> in view of the camera</li>
+              <li>AI builds a <strong style="color:var(--cyan)">30-frame sequence</strong> (optimized)</li>
+              <li>When your motion stops → <strong style="color:var(--green)">instant prediction fires ⚡</strong></li>
+              <li>The sentence appears on-screen and is <strong style="color:var(--cyan)">spoken aloud</strong></li>
+            </ol>
+            <div style="
+              margin-top:12px;
+              padding:10px 12px;
+              background:var(--cyan-dim);
+              border:1px solid var(--border-active);
+              border-radius:8px;
+              font-size:0.8rem;
+              color:var(--cyan);
+            ">
+              <strong>Supported sentences:</strong><br>
+              Hello How Are You · I Am Fine · Thank You · I Need Help
+            </div>
+            <div style="
+              margin-top:8px;
+              padding:7px 10px;
+              background:rgba(74,222,128,0.07);
+              border:1px solid rgba(74,222,128,0.2);
+              border-radius:8px;
+              font-size:0.75rem;
+              color:var(--green);
+            ">
+              💡 <strong>Tip:</strong> Press <kbd style="
+                background:rgba(255,255,255,0.1);
+                border:1px solid rgba(255,255,255,0.2);
+                border-radius:3px;
+                padding:1px 5px;
+              ">Ctrl+D</kbd> to toggle the real-time debug HUD
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Conversation History ── -->
+        <div class="sm-glass-card" role="region" aria-label="Conversation history">
+          <div class="sm-card-header">
+            <div class="sm-card-title">
+              <span class="sm-card-icon" aria-hidden="true">💬</span>
+              Conversation History
+            </div>
+            <span style="font-size:0.72rem; color:var(--text-dim);">newest first</span>
+          </div>
+
+          <div class="sm-history-list" id="sm-history-list"
+               role="log" aria-live="polite" aria-label="Detected sentences history">
+            <div class="sm-history-empty">Conversation history will appear here...</div>
+          </div>
+        </div>
+
+      </div><!-- /.sm-right-col -->
+
+    </div><!-- /.sm-main-grid -->
+  </div><!-- /.sm-container -->
+</main>
+
+<!-- ════════════════════════════════════════════
+     DEBUG HUD (hidden by default, Ctrl+D)
+════════════════════════════════════════════ -->
+<div id="sm-debug-hud" class="sm-debug-hud" style="display:none;" aria-hidden="true"></div>
+
+<!-- ════════════════════════════════════════════
+     TOAST NOTIFICATION
+════════════════════════════════════════════ -->
+<div id="sm-toast" class="sm-toast" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<!-- ════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════ -->
+<script src="{{ url_for('static', filename='js/sentence_mode.js') }}"></script>
+<script>
+// Navbar scroll effect
+window.addEventListener('scroll', () => {
+  document.getElementById('sm-navbar').style.boxShadow =
+    window.scrollY > 10
+      ? '0 2px 40px rgba(0,0,0,0.6)'
+      : '0 1px 30px rgba(0,0,0,0.4)';
+});
+
+// Sync status text dots with camera active state
+const statusDot = document.getElementById('sm-status-dot');
+const navTxt    = document.getElementById('sm-nav-status-text');
+const camTxt    = document.getElementById('sm-cam-status-text');
+const observer  = new MutationObserver(() => {
+  const isActive = statusDot.classList.contains('active');
+  if (navTxt) navTxt.textContent = isActive ? 'LIVE' : 'OFFLINE';
+  if (camTxt) camTxt.textContent = isActive ? 'LIVE' : 'OFFLINE';
+});
+observer.observe(statusDot, { attributes: true, attributeFilter: ['class'] });
+</script>
+</body>
+</html>

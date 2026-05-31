@@ -3,6 +3,7 @@ import sys
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.utils.class_weight import compute_class_weight
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional, BatchNormalization
@@ -84,12 +85,38 @@ def main():
     if skipped_zero > 0 or skipped_shape > 0 or skipped_error > 0:
         print(f"\n[DATA CLEANING] Skipped: {skipped_zero} all-zero, {skipped_shape} wrong-shape, {skipped_error} errors")
 
+    # 2.5 Data augmentation for alphabet classes (single-char names like A, C, V, I)
+    ALPHABET_CLASSES = {label for label in classes if len(label) == 1}
+    if ALPHABET_CLASSES:
+        print(f"\n[AUGMENTATION] Generating augmented samples for alphabet classes: {sorted(ALPHABET_CLASSES)}")
+        aug_sequences = []
+        aug_labels = []
+        for seq, lbl_idx in zip(sequences, labels):
+            label_name = classes[lbl_idx]
+            if label_name in ALPHABET_CLASSES:
+                # Add 2 augmented copies with small Gaussian noise for better differentiation
+                for _ in range(2):
+                    noise = np.random.normal(0, 0.02, seq.shape)
+                    aug_seq = seq + noise
+                    aug_sequences.append(aug_seq.astype(np.float32))
+                    aug_labels.append(lbl_idx)
+        if aug_sequences:
+            sequences.extend(aug_sequences)
+            labels.extend(aug_labels)
+            print(f"[AUGMENTATION] Added {len(aug_sequences)} augmented samples. Total: {len(sequences)}")
+
     X = np.array(sequences)
     y = to_categorical(labels).astype(int)
 
     print(f"\nDataset loaded successfully!")
     print(f"X shape: {X.shape} (samples, sequence_length, features)")
     print(f"y shape: {y.shape} (samples, one_hot_encoded_classes)")
+
+    # 2.6 Compute class weights for balanced training
+    unique_labels = np.unique(labels)
+    class_weights_array = compute_class_weight('balanced', classes=unique_labels, y=labels)
+    class_weight_dict = {int(k): float(v) for k, v in zip(unique_labels, class_weights_array)}
+    print(f"Class weights: {class_weight_dict}")
 
     # 3. Train-Test Split (80% Train, 20% Test)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=labels)
@@ -150,18 +177,25 @@ def main():
     history = model.fit(
         X_train, 
         y_train, 
-        epochs=120, 
+        epochs=150, 
         batch_size=16, 
         validation_data=(X_test, y_test), 
-        callbacks=callbacks
+        callbacks=callbacks,
+        class_weight=class_weight_dict
     )
 
     print(f"\nModel training finished! Best model saved to: {checkpoint_path}")
 
-    # 8. Save Class Labels
+    # 8. Save Class Labels (both .npy and .txt for human-readable inspection)
     labels_path = os.path.join(models_dir, "labels.npy")
     np.save(labels_path, np.array(classes))
     print(f"Saved labels list to: {labels_path}")
+
+    labels_txt_path = os.path.join(models_dir, "labels.txt")
+    with open(labels_txt_path, 'w') as f:
+        for i, cls_name in enumerate(classes):
+            f.write(f"{i}: {cls_name}\n")
+    print(f"Saved human-readable labels to: {labels_txt_path}")
 
     # 9. Evaluate Model Performance
     print("\n=======================================================")

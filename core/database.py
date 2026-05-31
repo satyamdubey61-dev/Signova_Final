@@ -25,10 +25,21 @@ def init_users_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL
+                password_hash TEXT NOT NULL,
+                signup_date TEXT,
+                last_login TEXT
             )
             """
         )
         conn.commit()
+        
+        # Add columns dynamically if the table already existed without them
+        for column_name in ["signup_date", "last_login"]:
+            try:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {column_name} TEXT")
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists, safe to skip
+                pass
     finally:
         conn.close()

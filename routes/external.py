@@ -9,7 +9,7 @@ from utils.logger import logger
 
 external_bp: Blueprint = Blueprint('external', __name__)
 
-CONTACT_TO_EMAIL: str = os.environ.get("CONTACT_TO_EMAIL", "info.evolvora@gmail.com") or ""
+CONTACT_TO_EMAIL: str = os.environ.get("CONTACT_TO_EMAIL", "satyamdubey61@gmail.com") or ""
 CONTACT_FROM_EMAIL: str = os.environ.get("CONTACT_FROM_EMAIL", "info.evolvora@gmail.com") or ""
 GMAIL_APP_PASSWORD: str = os.environ.get("GMAIL_APP_PASSWORD", "") or ""
 
@@ -22,6 +22,8 @@ def contact() -> Tuple[Response, int] | Response:
     data: Dict[str, Any] = request.get_json() or {}
     name: str = (data.get("name") or "").strip()
     sender_email: str = (data.get("email") or "").strip()
+    subject_field: str = (data.get("subject") or "").strip()
+    category: str = (data.get("category") or "").strip()
     message_body: str = (data.get("message") or "").strip()
 
     if not name or not sender_email or not message_body:
@@ -33,12 +35,19 @@ def contact() -> Tuple[Response, int] | Response:
             "message": "Contact form is not configured. Administrator: set GMAIL_APP_PASSWORD.",
         }), 503
 
-    subject: str = f"SignifyConnect – Get In Touch from {name}"
-    body: str = f"You received a message from the SignifyConnect contact form.\n\nName: {name}\nEmail: {sender_email}\n\nMessage:\n{message_body}\n"
+    subject: str = f"Signova – {category or 'Get In Touch'}: {subject_field or 'No Subject'} (from {name})"
+    body: str = (
+        f"You received a message from the Signova contact form.\n\n"
+        f"Name: {name}\n"
+        f"Email: {sender_email}\n"
+        f"Category: {category or 'General / Direct Message'}\n"
+        f"Subject: {subject_field or 'No Subject'}\n\n"
+        f"Message:\n{message_body}\n"
+    )
 
     msg: MIMEText = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = subject
-    msg["From"] = formataddr(("SignifyConnect Contact", CONTACT_FROM_EMAIL))
+    msg["From"] = formataddr(("Signova Contact Portal", CONTACT_FROM_EMAIL))
     msg["To"] = CONTACT_TO_EMAIL
     msg["Reply-To"] = sender_email
 

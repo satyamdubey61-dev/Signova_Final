@@ -43,13 +43,17 @@ from routes.auth import auth_bp  # noqa: E402
 from routes.predict import predict_bp  # noqa: E402
 from routes.external import external_bp  # noqa: E402
 from routes.features import features_bp  # noqa: E402
+from routes.sentence_mode import sentence_mode_bp  # noqa: E402
+from routes.learn import learn_bp  # noqa: E402
+from routes.dashboard import dashboard_bp  # noqa: E402
+from routes.ai_assistant import ai_assistant_bp  # noqa: E402
 from utils.error_handlers import register_error_handlers  # noqa: E402
 from utils.logger import logger  # noqa: E402
 
 # Ensure DB exists
 init_users_db()
 
-app: Flask = Flask(__name__, static_folder="static", static_url_path="")
+app: Flask = Flask(__name__, static_folder="static", static_url_path="", template_folder="templates")
 app.secret_key = os.environ.get("SIGNIFYCONNECT_SECRET_KEY", "dev-secret-key")
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
@@ -58,9 +62,19 @@ app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(predict_bp, url_prefix="/api")
 app.register_blueprint(external_bp, url_prefix="/api")
 app.register_blueprint(features_bp, url_prefix="/api")
+app.register_blueprint(sentence_mode_bp)  # Sentence mode: /sentence-mode, /api/predict-sentence, /api/clear-sentence
+app.register_blueprint(learn_bp)           # Learn Hub: /learn, /api/quiz-questions
+app.register_blueprint(dashboard_bp)       # Dashboard: /dashboard, /api/progress-summary
+app.register_blueprint(ai_assistant_bp)   # AI Assistant: /ai-assistant, /api/ai-chat
 
 # Register Error Handlers
 register_error_handlers(app)
+
+
+@app.route("/static/<path:filename>")
+def serve_static_compat(filename: str) -> Response:
+    static_dir: str = app.static_folder or "static"
+    return send_from_directory(static_dir, filename)
 
 
 @app.route("/")

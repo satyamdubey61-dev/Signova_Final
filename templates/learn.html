@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signova — AI Learning Hub</title>
+  <meta name="description" content="Signova AI Learning Hub — Master Indian Sign Language at your own pace through interactive modules, visual step-by-step playback, real-time webcam practice, and engaging quizzes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/learn.css">
+</head>
+<body class="learn-hub-body">
+
+<!-- Unified Navbar -->
+<header class="navbar" id="navbar">
+  <div class="navbar-inner">
+    <a href="/" class="navbar-brand">
+      <span class="brand-icon">⚡</span>
+      Signova
+    </a>
+    <nav class="navbar-nav">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/learn" class="nav-link active" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+      <a href="/dashboard" class="nav-link" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+      <a href="/ai-assistant" class="nav-link" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+      <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;" id="nav-live-conversation">💬 Live Conversation</a>
+    </nav>
+    <div class="navbar-actions">
+      <button id="profile-btn" class="btn-ghost">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Profile
+      </button>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-nav hidden" id="mobile-nav">
+    <a href="/" class="nav-link">Home</a>
+    <a href="/learn" class="nav-link" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+    <a href="/dashboard" class="nav-link" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+    <a href="/ai-assistant" class="nav-link" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+    <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;">💬 Live Conversation</a>
+  </div>
+</header>
+
+<main class="container page-content">
+  <!-- Interactive Welcome Panel -->
+  <section class="onboarding-panel">
+    <div class="onboarding-content">
+      <div class="category-badge">🎓 AI Learning Suite</div>
+      <h1 class="page-title">Master Indian Sign Language</h1>
+      <p class="page-sub">
+        Welcome to your inclusive learning workspace. Here, technology and accessibility combine 
+        to help you learn, practice, and evaluate your ISL gesture vocabulary using direct 
+        AI-powered interactive models. Designed with absolute precision, for everyone.
+      </p>
+    </div>
+  </section>
+
+  <!-- Navigation Tabs -->
+  <div class="tabs-nav" role="tablist">
+    <button class="tab-btn active" data-tab="alphabets" role="tab" aria-selected="true">🔤 Alphabets</button>
+    <button class="tab-btn" data-tab="words" role="tab" aria-selected="false">🤟 Common Words</button>
+    <button class="tab-btn" data-tab="sentences" role="tab" aria-selected="false">📜 Sentences</button>
+    <button class="tab-btn" data-tab="quiz" role="tab" aria-selected="false">🎯 Quiz Mode</button>
+    <button class="tab-btn" data-tab="practice" role="tab" aria-selected="false">📷 Live Practice</button>
+  </div>
+
+  <!-- TABS CONTENT -->
+  <div class="tabs-content-container">
+
+    <!-- 1. ALPHABET SECTION -->
+    <div class="tab-panel active" id="tab-alphabets" role="tabpanel">
+      <div class="section-intro">
+        <h2>Learn the Alphabets</h2>
+        <p>Click on any letter card to inspect manual hand postures. Try A, C, I, and V to view interactive animation guides.</p>
+      </div>
+      <div class="alphabet-grid" id="alphabet-grid-container">
+        <!-- Generated Dynamically by JS -->
+      </div>
+    </div>
+
+    <!-- 2. COMMON WORDS SECTION -->
+    <div class="tab-panel" id="tab-words" role="tabpanel">
+      <div class="section-intro">
+        <h2>Essential Vocabulary</h2>
+        <p>Master these core conversational words in Indian Sign Language. Use the options to review animations or test your posture.</p>
+      </div>
+      <div class="words-grid" id="words-grid-container">
+        <!-- Generated Dynamically by JS -->
+      </div>
+    </div>
+
+    <!-- 3. SENTENCE SECTION -->
+    <div class="tab-panel" id="tab-sentences" role="tabpanel">
+      <div class="section-intro">
+        <h2>Conversational Sentences</h2>
+        <p>Explore step-by-step sequential gesture combinations to construct fluid phrases in ISL.</p>
+      </div>
+      <div class="sentences-grid" id="sentences-grid-container">
+        <!-- Generated Dynamically by JS -->
+      </div>
+    </div>
+
+    <!-- 4. QUIZ MODE -->
+    <div class="tab-panel" id="tab-quiz" role="tabpanel">
+      <div class="quiz-wrapper card-glow">
+        <!-- Onboarding Screen -->
+        <div class="quiz-screen active" id="quiz-start-screen">
+          <div class="quiz-icon-large">🎯</div>
+          <h2>Ready to Evaluate Your Skills?</h2>
+          <p>This gamified trivia session randomly selects five gesture-matching and word-association questions from our ISL vocabulary. Can you get a perfect score?</p>
+          <button class="btn-primary btn-lg" id="start-quiz-btn">Begin Quiz Session</button>
+        </div>
+
+        <!-- Question Screen -->
+        <div class="quiz-screen hidden" id="quiz-question-screen">
+          <div class="quiz-header">
+            <div class="quiz-progress-text">Question <span id="quiz-current-num">1</span> of 5</div>
+            <div class="quiz-timer" id="quiz-timer-bar"></div>
+          </div>
+          <div class="quiz-score-badge">Score: <span id="quiz-live-score">0</span></div>
+          
+          <h3 class="quiz-question-title" id="quiz-question-text">Loading question...</h3>
+          
+          <div class="quiz-body">
+            <div class="quiz-visual-clue hidden" id="quiz-media-container">
+              <img id="quiz-gif-element" class="quiz-gif" src="" alt="ISL Gesture Clue">
+              <video id="quiz-video-element" class="quiz-gif hidden" autoplay muted loop playsinline style="border-radius: 12px; max-width: 100%; height: auto; display: block; object-fit: cover; box-shadow: 0 0 15px rgba(34, 211, 238, 0.3);"></video>
+            </div>
+            
+            <div class="quiz-options-grid" id="quiz-options-container">
+              <!-- Dynamically populated options buttons -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div class="quiz-screen hidden" id="quiz-result-screen">
+          <div class="quiz-trophy">🏆</div>
+          <h2>Quiz Completed!</h2>
+          <p id="quiz-feedback-text">Excellent job! You are mastering Indian Sign Language rapidly.</p>
+          <div class="quiz-final-score">
+            <span>Your Final Score</span>
+            <strong id="quiz-score-value">80/100</strong>
+          </div>
+          <div class="quiz-action-row">
+            <button class="btn-primary" id="retry-quiz-btn">Practice Again</button>
+            <button class="btn-ghost" id="quiz-to-dashboard-btn">View Stats</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. GESTURE PRACTICE -->
+    <div class="tab-panel" id="tab-practice" role="tabpanel">
+      <div class="practice-grid">
+        <!-- Live Webcam Frame -->
+        <div class="practice-camera-card card-glow">
+          <div class="practice-camera-header">
+            <div class="title">
+              <span class="pulse-dot active"></span>
+              Live Practice Feed
+            </div>
+            <div class="model-badge">AI Evaluating</div>
+          </div>
+          
+          <div class="practice-video-viewport">
+            <video id="practice-video" autoplay playsinline muted></video>
+            <canvas id="practice-capture-canvas" style="display:none;"></canvas>
+            
+            <!-- Guides Overlay -->
+            <div class="practice-overlay-card" id="practice-status-overlay">
+              <div class="icon">📷</div>
+              <p>Select a target sign below and click **Activate Camera** to begin real-time posture validation.</p>
+            </div>
+            
+            <!-- HUD HUD stats -->
+            <div class="practice-target-hud hidden" id="practice-target-hud">
+              <div class="label">TARGET SIGN</div>
+              <div class="value" id="practice-target-name">Hello</div>
+            </div>
+            
+            <!-- Success Overlay -->
+            <div class="practice-success-overlay hidden" id="practice-success-overlay">
+              <div class="checkmark-animation">✨ Success! ✨</div>
+              <p>Excellent posture matched with high confidence!</p>
+            </div>
+          </div>
+          
+          <button class="btn-primary btn-start" id="practice-camera-toggle">Activate Camera</button>
+        </div>
+
+        <!-- Target Selector Sidebar -->
+        <div class="practice-sidebar card-glow">
+          <h3>Practice Targets</h3>
+          <p class="sidebar-help">Select the sign or sentence you would like the AI to evaluate. Perform it clearly in front of the lens.</p>
+          
+          <div class="selector-group">
+            <h4>Alphabets</h4>
+            <div class="selector-chips" id="practice-alphabets-chips">
+              <!-- Dynamically rendered chips -->
+            </div>
+          </div>
+          
+          <div class="selector-group">
+            <h4>Common Words</h4>
+            <div class="selector-chips" id="practice-words-chips">
+              <!-- Dynamically rendered chips -->
+            </div>
+          </div>
+
+          <div class="selector-group">
+            <h4>Sentences</h4>
+            <div class="selector-chips" id="practice-sentences-chips">
+              <!-- Dynamically rendered chips -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- GLOBAL GESTURE ANIMATION DIALOG MODAL -->
+<div id="gesture-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+  <div class="modal-panel animate-zoom">
+    <button id="close-modal-btn" class="modal-close" aria-label="Close dialog">✕</button>
+    <h2 class="modal-title" id="modal-gesture-title">Gesture Preview</h2>
+    <p class="modal-subtitle" id="modal-gesture-description">Step-by-step visual guidance</p>
+    
+    <div class="modal-visual-container">
+      <img id="modal-gesture-gif" class="modal-gif" src="" alt="ISL Gesture Preview">
+      <video id="modal-gesture-video" class="modal-gif hidden" autoplay loop muted playsinline></video>
+      <div id="modal-step-playback-controls" class="playback-controls hidden">
+        <button id="modal-playback-prev" class="btn-tiny">◀ Prev</button>
+        <span id="modal-playback-indicator">Word 1 of 2</span>
+        <button id="modal-playback-next" class="btn-tiny">Next ▶</button>
+      </div>
+    </div>
+    
+    <div class="modal-instructions-block">
+      <h4>Posture Instructions</h4>
+      <p id="modal-gesture-instructions">Stand straight, maintain standard distance, and align your hands politely.</p>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="brand-icon">⚡</span>
+      <span class="footer-name">Signova</span>
+      <p class="footer-tagline">Breaking barriers through AI-powered sign language translation.</p>
+    </div>
+    <div class="footer-links">
+      <a href="/learn">Learn Hub</a>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/ai-assistant">AI Mentor</a>
+      <a href="/sentence-mode">Live Conversation</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 Signova. Developed by Satyam Dubey</p>
+  </div>
+</footer>
+
+<div id="global-toast" class="toast hidden">
+  <span id="global-toast-text"></span>
+</div>
+
+<script src="/js/learn.js"></script>
+</body>
+</html>

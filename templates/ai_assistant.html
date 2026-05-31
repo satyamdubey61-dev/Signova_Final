@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signova — AI Sign Mentor</title>
+  <meta name="description" content="Signova AI Sign Mentor — An intelligent conversational assistant trained to guide, teach, and demonstrate Indian Sign Language signs in real time.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/ai_assistant.css">
+</head>
+<body class="ai-body">
+
+<!-- Unified Navbar -->
+<header class="navbar" id="navbar">
+  <div class="navbar-inner">
+    <a href="/" class="navbar-brand">
+      <span class="brand-icon">⚡</span>
+      Signova
+    </a>
+    <nav class="navbar-nav">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/learn" class="nav-link" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+      <a href="/dashboard" class="nav-link" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+      <a href="/ai-assistant" class="nav-link active" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+      <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;" id="nav-live-conversation">💬 Live Conversation</a>
+    </nav>
+    <div class="navbar-actions">
+      <button id="profile-btn" class="btn-ghost">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Profile
+      </button>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-nav hidden" id="mobile-nav">
+    <a href="/" class="nav-link">Home</a>
+    <a href="/learn" class="nav-link" style="color:var(--orange);font-weight:600;">🎓 Learn</a>
+    <a href="/dashboard" class="nav-link" style="color:var(--green);font-weight:600;">📊 Dashboard</a>
+    <a href="/ai-assistant" class="nav-link" style="color:var(--purple);font-weight:600;">🤖 AI Mentor</a>
+    <a href="/sentence-mode" class="nav-link" style="color:var(--cyan);font-weight:600;">💬 Live Conversation</a>
+  </div>
+</header>
+
+<main class="container page-content">
+  <!-- Page Header -->
+  <section class="ai-header">
+    <div class="category-badge" style="background:rgba(168,85,247,0.12); border-color:rgba(168,85,247,0.3); color:var(--purple);">🤖 Conversational Space</div>
+    <h1 class="page-title">Interact with your AI Mentor</h1>
+    <p class="page-sub">
+      Ask questions, request demonstrations, or get feedback guidelines from our interactive sign tutor.
+    </p>
+  </section>
+
+  <!-- Interactive Chat Grid -->
+  <section class="chat-grid">
+    <!-- Chat Area Card -->
+    <div class="chat-container card-glow">
+      <!-- Header bar -->
+      <div class="chat-header">
+        <div class="assistant-profile">
+          <div class="avatar">🤖</div>
+          <div class="info">
+            <span class="name">Signova AI Mentor</span>
+            <span class="status">Online &amp; ready to demonstrate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message History (Scrolling feed) -->
+      <div class="chat-history" id="chat-history-container">
+        <!-- Initial friendly welcome bubble -->
+        <div class="msg-bubble mentor animate-bubble">
+          <div class="text">
+            Hello! ⚡ I am your interactive **Signova AI Assistant**, trained to guide you in Indian Sign Language (ISL). 
+            <br><br>
+            You can ask me how to perform any specific sign like <strong>'Hello'</strong>, <strong>'Yes'</strong>, <strong>'No'</strong>, <strong>'Sorry'</strong>, or manual alphabets like <strong>'A'</strong> or <strong>'V'</strong>. 
+            <br><br>
+            I will explain the hand movements clearly and embed the animation guides instantly! How can I help you today?
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Prompt Row -->
+      <div class="quick-prompts-wrapper">
+        <button class="quick-prompt-btn" data-query="How do I sign Thank You?">🙏 "How do I sign Thank You?"</button>
+        <button class="quick-prompt-btn" data-query="Show me the alphabet A">🔤 "Show me the alphabet A"</button>
+        <button class="quick-prompt-btn" data-query="Give me a learning tip for today">⚡ "Give me a learning tip!"</button>
+      </div>
+
+      <!-- Input Bar Form -->
+      <form class="chat-input-wrapper" id="chat-input-form">
+        <input type="text" id="chat-user-input" class="chat-input" placeholder="Ask about a sign (e.g., 'How do I sign Sorry?')..." required autocomplete="off">
+        <button type="submit" class="btn-primary" id="chat-send-btn">
+          <span>Send</span>
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9-7-9-7v14z"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="brand-icon">⚡</span>
+      <span class="footer-name">Signova</span>
+      <p class="footer-tagline">Breaking barriers through AI-powered sign language translation.</p>
+    </div>
+    <div class="footer-links">
+      <a href="/learn">Learn Hub</a>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/ai-assistant">AI Mentor</a>
+      <a href="/sentence-mode">Live Conversation</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 Signova. Developed by Satyam Dubey</p>
+  </div>
+</footer>
+
+<script src="/js/ai_assistant.js"></script>
+</body>
+</html>

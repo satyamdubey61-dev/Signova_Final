@@ -71,9 +71,31 @@ def _fallback_authenticate_user(email: str, password: str) -> Tuple[bool, Option
         return False, None
 
 
+import datetime
+import csv
+
+def _export_users_to_csv() -> None:
+    """Export current user records to a CSV file in instance/ directory as an analytics backup."""
+    try:
+        conn = get_db_connection()
+        rows = conn.execute("SELECT id, name, email, signup_date, last_login FROM users").fetchall()
+        conn.close()
+        
+        csv_path = os.path.join(os.path.dirname(USERS_DB_PATH), "users_analytics.csv")
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Name/Username", "Email", "Signup Date", "Last Login"])
+            for row in rows:
+                writer.writerow([row["id"], row["name"], row["email"], row["signup_date"], row["last_login"]])
+        logger.info(f"Analytics backup successfully exported to: {csv_path}")
+    except Exception as e:
+        logger.error(f"Failed to generate CSV analytics backup: {e}")
+
+
 class AuthService:
     @staticmethod
     def create_user(name: str, email: str, password: str) -> Tuple[bool, str]:
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             conn: sqlite3.Connection = get_db_connection()
         except Exception as db_err:
@@ -82,11 +104,15 @@ class AuthService:
 
         try:
             conn.execute(
-                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-                (name, email, generate_password_hash(password)),
+                "INSERT INTO users (name, email, password_hash, signup_date) VALUES (?, ?, ?, ?)",
+                (name, email, generate_password_hash(password), current_time),
             )
             conn.commit()
             logger.info(f"New user created in SQLite: {email}")
+            
+            # Export analytics backup
+            _export_users_to_csv()
+            
             return True, "Account created successfully."
         except sqlite3.IntegrityError:
             logger.warning(f"SQLite signup failed. Account with email already exists: {email}")
@@ -102,6 +128,7 @@ class AuthService:
 
     @staticmethod
     def authenticate_user(email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             conn: sqlite3.Connection = get_db_connection()
         except Exception as db_err:
@@ -116,23 +143,44 @@ class AuthService:
         except Exception as e:
             logger.error(f"SQLite login query failed for {email}: {e}. Trying JSON fallback...")
             return _fallback_authenticate_user(email, password)
+
+        if row is None:
+            # Check JSON storage fallback
+            try:
+                conn.close()
+            except Exception:
+                pass
+            logger.info(f"User not found in SQLite: {email}. Checking JSON fallback...")
+            return _fallback_authenticate_user(email, password)
+
+        pw_hash: str = str(row["password_hash"])
+        if not check_password_hash(pw_hash, password):
+            try:
+                conn.close()
+            except Exception:
+                pass
+            logger.warning(f"Failed login attempt for: {email}")
+            return False, None
+
+        # Update last_login column in SQLite database
+        try:
+            conn.execute(
+                "UPDATE users SET last_login = ? WHERE id = ?",
+                (current_time, row["id"]),
+            )
+            conn.commit()
+            logger.info(f"User logged in, last_login updated: {email}")
+            
+            # Export analytics backup
+            _export_users_to_csv()
+        except Exception as e:
+            logger.error(f"Failed to update last_login timestamp for {email}: {e}")
         finally:
             try:
                 conn.close()
             except Exception:
                 pass
 
-        if row is None:
-            # Check JSON storage fallback
-            logger.info(f"User not found in SQLite: {email}. Checking JSON fallback...")
-            return _fallback_authenticate_user(email, password)
-
-        pw_hash: str = str(row["password_hash"])
-        if not check_password_hash(pw_hash, password):
-            logger.warning(f"Failed login attempt for: {email}")
-            return False, None
-
-        logger.info(f"User logged in: {email}")
         return True, {
             "id": row["id"],
             "name": row["name"],
