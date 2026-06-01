@@ -5,6 +5,7 @@
    ============================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
+  initThemeSystem();
   // --- Data Dictionaries ---
   const ALPHABET_DATA = [];
   const alphabetLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -580,13 +581,22 @@ document.addEventListener("DOMContentLoaded", () => {
     saveToDashboard("quiz", quizScore);
 
     if (quizScore >= 80) {
-      quizResultScreen.querySelector(".quiz-trophy").textContent = "🏆";
+      quizResultScreen.querySelector(".quiz-trophy").innerHTML = `
+        <svg width="72" height="72" fill="none" stroke="var(--cyan)" stroke-width="2" viewBox="0 0 24 24" style="filter: drop-shadow(0 0 10px rgba(34,211,238,0.4));">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34M12 2a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4 4 4 0 0 1-4-4V6a4 4 0 0 1 4-4z"/>
+        </svg>`;
       document.getElementById("quiz-feedback-text").textContent = "Outstanding work! You've achieved highly on Indian Sign Language visual signs!";
     } else if (quizScore >= 50) {
-      quizResultScreen.querySelector(".quiz-trophy").textContent = "⭐";
+      quizResultScreen.querySelector(".quiz-trophy").innerHTML = `
+        <svg width="72" height="72" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24" style="filter: drop-shadow(0 0 10px rgba(168,85,247,0.4));">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>`;
       document.getElementById("quiz-feedback-text").textContent = "Great job! A bit more visual review will make you absolute master.";
     } else {
-      quizResultScreen.querySelector(".quiz-trophy").textContent = "📚";
+      quizResultScreen.querySelector(".quiz-trophy").innerHTML = `
+        <svg width="72" height="72" fill="none" stroke="var(--orange)" stroke-width="2" viewBox="0 0 24 24" style="filter: drop-shadow(0 0 10px rgba(249,115,22,0.4));">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>`;
       document.getElementById("quiz-feedback-text").textContent = "Practice makes perfect. Click below to review letters and common words again.";
     }
   }
@@ -799,3 +809,45 @@ document.addEventListener("DOMContentLoaded", () => {
   renderSidebarSelectorChips();
   registerCardButtons();
 });
+
+/* ── Theme System ──────────────────────────────────────────── */
+function initThemeSystem() {
+  const toggleBtn = document.getElementById('theme-toggle-btn');
+  if (!toggleBtn) return;
+
+  const sunIcon = toggleBtn.querySelector('.sun-icon');
+  const moonIcon = toggleBtn.querySelector('.moon-icon');
+
+  const updateIcons = (isLight) => {
+    if (isLight) {
+      sunIcon?.classList.remove('hidden');
+      moonIcon?.classList.add('hidden');
+    } else {
+      sunIcon?.classList.add('hidden');
+      moonIcon?.classList.remove('hidden');
+    }
+  };
+
+  // Initial state setup
+  const isLight = document.body.classList.contains('light-theme');
+  updateIcons(isLight);
+
+  toggleBtn.addEventListener('click', () => {
+    const turnLight = !document.body.classList.contains('light-theme');
+    if (turnLight) {
+      document.documentElement.classList.add('light-theme');
+      document.body.classList.add('light-theme');
+      localStorage.setItem('signova_theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+      document.body.classList.remove('light-theme');
+      localStorage.setItem('signova_theme', 'dark');
+    }
+    updateIcons(turnLight);
+  });
+
+  // Add theme-ready class to prevent transition flash on initial load
+  setTimeout(() => {
+    document.body.classList.add('theme-ready');
+  }, 150);
+}

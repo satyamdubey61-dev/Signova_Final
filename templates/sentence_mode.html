@@ -7,41 +7,76 @@
   <meta name="description" content="Signova Live Sentence Conversation Mode — AI-powered real-time sign language sentence detection with instant subtitle overlay, gesture-end detection, and speech output.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sentence_mode.css') }}">
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('signova_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
 </head>
 <body class="sentence-mode-body">
+<script>
+  if (localStorage.getItem('signova_theme') === 'light') {
+    document.body.classList.add('light-theme');
+  }
+</script>
 
 <!-- Hidden canvas for frame capture (not displayed) -->
 <canvas id="sm-capture-canvas" style="display:none;" aria-hidden="true"></canvas>
 
-<!-- ════════════════════════════════════════════
-     NAVBAR
-════════════════════════════════════════════ -->
-<nav class="sm-navbar" id="sm-navbar" role="navigation" aria-label="Sentence mode navigation">
-  <a href="/" class="sm-brand" aria-label="Signova home">
-    <span class="brand-icon" aria-hidden="true">⚡</span>
-    Signova
-  </a>
-
-  <div class="sm-nav-links">
-    <a href="/" class="sm-nav-link" id="nav-home">Home</a>
-    <a href="/learn" class="sm-nav-link" style="color:#fbbf24;">🎓 Learn</a>
-    <a href="/dashboard" class="sm-nav-link" style="color:#4ade80;">📊 Dashboard</a>
-    <a href="/ai-assistant" class="sm-nav-link" style="color:#a855f7;">🤖 AI Mentor</a>
-    <a href="/sentence-mode" class="sm-nav-link active" style="color:#22d3ee;font-weight:600;" aria-current="page">💬 Live Conversation</a>
-  </div>
-
-  <div style="display: flex; gap: 12px; align-items: center;">
-    <div class="sm-status-badge" role="status" aria-live="polite">
-      <div class="sm-status-dot" id="sm-nav-status-dot" aria-hidden="true"></div>
-      <span id="sm-nav-status-text">OFFLINE</span>
+<!-- Unified Navbar -->
+<header class="navbar" id="navbar">
+  <div class="navbar-inner">
+    <a href="/" class="navbar-brand">
+      <img src="/static/assets/images/signova_logo.png" alt="Signova Logo" class="brand-logo">
+      Signova
+    </a>
+    <nav class="navbar-nav">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/learn" class="nav-link">Learn</a>
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/ai-assistant" class="nav-link">AI Mentor</a>
+      <a href="/sentence-mode" class="nav-link active" id="nav-live-conversation">Live Conversation</a>
+      <a href="/#about" class="nav-link">About</a>
+      <a href="/#contact" class="nav-link">Contact</a>
+    </nav>
+    <div class="navbar-actions">
+      <button id="theme-toggle-btn" class="theme-toggle-btn" aria-label="Toggle Light/Dark Theme" title="Toggle Theme">
+        <svg class="sun-icon hidden" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+        <svg class="moon-icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+        </svg>
+      </button>
+      <div class="sm-status-badge" role="status" aria-live="polite">
+        <div class="sm-status-dot" id="sm-nav-status-dot" aria-hidden="true"></div>
+        <span id="sm-nav-status-text">OFFLINE</span>
+      </div>
+      <div class="sm-status-badge" id="sm-mic-status-badge" role="status" aria-live="polite">
+        <span class="sm-mic-status-dot" id="sm-mic-status-dot" aria-hidden="true"></span>
+        <span id="sm-mic-status-text">OFFLINE</span>
+      </div>
     </div>
-    <div class="sm-status-badge" id="sm-mic-status-badge" role="status" aria-live="polite" style="border-color: rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); transition: border-color 0.25s;">
-      <span id="sm-mic-status-icon">🔴</span>
-      <span id="sm-mic-status-text">OFFLINE</span>
-    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
-</nav>
+  <div class="mobile-nav hidden" id="mobile-nav">
+    <a href="/" class="nav-link">Home</a>
+    <a href="/learn" class="nav-link">Learn</a>
+    <a href="/dashboard" class="nav-link">Dashboard</a>
+    <a href="/ai-assistant" class="nav-link">AI Mentor</a>
+    <a href="/sentence-mode" class="nav-link active">Live Conversation</a>
+    <a href="/#about" class="nav-link">About</a>
+    <a href="/#contact" class="nav-link">Contact</a>
+  </div>
+</header>
 
 <!-- ════════════════════════════════════════════
      PAGE BODY
@@ -63,7 +98,14 @@
 
     <!-- Model Status Banner -->
     <div class="sm-model-banner hidden" id="sm-model-banner" role="alert" aria-live="polite">
-      <span aria-hidden="true">🤖</span>
+      <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-right:6px; color:inherit; vertical-align:middle;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="9" x2="9.01" y2="9"/>
+          <line x1="15" y1="9" x2="15.01" y2="9"/>
+          <path d="M9 15h6"/>
+        </svg>
+      </span>
       <span id="sm-model-banner-text">Checking sentence model status...</span>
     </div>
 
@@ -81,7 +123,12 @@
           <!-- Webcam header bar -->
           <div class="sm-webcam-header">
             <div class="sm-webcam-title">
-              <span aria-hidden="true">📷</span>
+              <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-right:6px; color:inherit; vertical-align:middle;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </span>
               Live Camera Feed
             </div>
             <div class="sm-webcam-indicators">
@@ -112,7 +159,12 @@
 
             <!-- Offline overlay -->
             <div class="sm-cam-overlay" id="sm-cam-overlay" role="presentation">
-              <div class="sm-cam-icon" aria-hidden="true">🎥</div>
+              <div class="sm-cam-icon" aria-hidden="true" style="color:var(--text-muted); margin-bottom:12px;">
+                <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M23 7l-7 5 7 5V7z"/>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                </svg>
+              </div>
               <p>Click <strong>Start Conversation</strong> to activate your camera<br>and begin real-time sentence detection.</p>
             </div>
 
@@ -124,7 +176,13 @@
               </div>
               <div class="sm-subtitle-meta">
                 <div class="sm-conf-pill" id="sm-conf-pill">
-                  <span aria-hidden="true">📊</span>
+                  <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:12px; height:12px; margin-right:4px; vertical-align:middle;">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <line x1="18" y1="20" x2="18" y2="10"/>
+                      <line x1="12" y1="20" x2="12" y2="4"/>
+                      <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                  </span>
                   <span id="sm-conf-pill-val">0</span>% Confidence
                 </div>
               </div>
@@ -139,7 +197,7 @@
 
         <!-- Start/Stop Button -->
         <button id="sm-start-btn" class="sm-start-btn" aria-label="Start or stop conversation mode">
-          <span aria-hidden="true">▶</span>
+          <svg class="sm-btn-svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right:6px; vertical-align:middle;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           Start Conversation
         </button>
 
@@ -147,7 +205,19 @@
         <div class="sm-glass-card" role="region" aria-label="Conversation controls">
           <div class="sm-card-header">
             <div class="sm-card-title">
-              <span class="sm-card-icon" aria-hidden="true">🎛️</span>
+              <span class="sm-card-icon" aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; color:var(--cyan); vertical-align:middle;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <line x1="4" y1="21" x2="4" y2="14"/>
+                  <line x1="4" y1="10" x2="4" y2="3"/>
+                  <line x1="12" y1="21" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12" y2="3"/>
+                  <line x1="20" y1="21" x2="20" y2="16"/>
+                  <line x1="20" y1="12" x2="20" y2="3"/>
+                  <line x1="1" y1="14" x2="7" y2="14"/>
+                  <line x1="9" y1="8" x2="15" y2="8"/>
+                  <line x1="17" y1="16" x2="23" y2="16"/>
+                </svg>
+              </span>
               Controls
             </div>
           </div>
@@ -155,21 +225,40 @@
             <button id="sm-clear-btn" class="sm-action-btn danger"
                     aria-label="Clear conversation history"
                     title="Clear all sentence history">
-              <span aria-hidden="true">🗑️</span> Clear
+              <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-right:4px; vertical-align:middle;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </span> Clear
             </button>
             <button id="sm-speak-again-btn" class="sm-action-btn green"
                     aria-label="Speak the last detected sentence again"
                     title="Speak the last detected sentence again">
-              <span aria-hidden="true">🔊</span> Speak Again
+              <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-right:4px; vertical-align:middle;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </span> Speak Again
             </button>
             <button id="sm-copy-btn" class="sm-action-btn"
                     aria-label="Copy conversation to clipboard"
                     title="Copy conversation to clipboard">
-              <span aria-hidden="true">📋</span> Copy
+              <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-right:4px; vertical-align:middle;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                </svg>
+              </span> Copy
             </button>
             <button id="sm-noop-btn" class="sm-action-btn purple" disabled
                     style="cursor:default; opacity:0.45;">
-              <span aria-hidden="true">💬</span> Sentence Mode
+              <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-right:4px; vertical-align:middle;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </span> Sentence Mode
             </button>
           </div>
 
@@ -177,11 +266,21 @@
           <div class="sm-export-row">
             <button id="sm-export-txt-btn" class="sm-export-btn"
                     aria-label="Export conversation as text file">
-              📄 Export TXT
+              <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:12px; height:12px; margin-right:4px; vertical-align:middle;">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </span>Export TXT
             </button>
             <button id="sm-export-pdf-btn" class="sm-export-btn"
                     aria-label="Export conversation as PDF">
-              📑 Export PDF
+              <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:12px; height:12px; margin-right:4px; vertical-align:middle;">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                  <path d="M9 9h6m-6 4h6"/>
+                </svg>
+              </span>Export PDF
             </button>
           </div>
         </div>
@@ -198,7 +297,11 @@
              role="region" aria-label="Live detected sentence">
           <div class="sm-card-header">
             <div class="sm-card-title">
-              <span class="sm-card-icon" aria-hidden="true">🤟</span>
+              <span class="sm-card-icon" aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; color:var(--cyan); vertical-align:middle;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8M8 14.5V11a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v9a7 7 0 0 0 14 0v-5a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2"/>
+                </svg>
+              </span>
               Detected Sentence
             </div>
             <div class="sm-conf-pill visible" style="opacity:1; font-size:0.72rem;">
@@ -239,7 +342,12 @@
         <div class="sm-glass-card" role="complementary" aria-label="Usage instructions">
           <div class="sm-card-header">
             <div class="sm-card-title">
-              <span class="sm-card-icon" aria-hidden="true">💡</span>
+              <span class="sm-card-icon" aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; color:var(--cyan); vertical-align:middle;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
+                  <path d="M9 18h6M10 22h4"/>
+                </svg>
+              </span>
               How It Works
             </div>
           </div>
@@ -248,7 +356,7 @@
               <li>Click <strong style="color:var(--cyan)">Start Conversation</strong></li>
               <li>Sign a <strong style="color:var(--cyan)">full sentence</strong> in view of the camera</li>
               <li>AI builds a <strong style="color:var(--cyan)">30-frame sequence</strong> (optimized)</li>
-              <li>When your motion stops → <strong style="color:var(--green)">instant prediction fires ⚡</strong></li>
+              <li>When your motion stops → <strong style="color:var(--green)">instant prediction fires.</strong></li>
               <li>The sentence appears on-screen and is <strong style="color:var(--cyan)">spoken aloud</strong></li>
             </ol>
             <div style="
@@ -272,7 +380,7 @@
               font-size:0.75rem;
               color:var(--green);
             ">
-              💡 <strong>Tip:</strong> Press <kbd style="
+              <strong>Tip:</strong> Press <kbd style="
                 background:rgba(255,255,255,0.1);
                 border:1px solid rgba(255,255,255,0.2);
                 border-radius:3px;
@@ -286,7 +394,11 @@
         <div class="sm-glass-card" role="region" aria-label="Conversation history">
           <div class="sm-card-header">
             <div class="sm-card-title">
-              <span class="sm-card-icon" aria-hidden="true">💬</span>
+              <span class="sm-card-icon" aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; color:var(--cyan); vertical-align:middle;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </span>
               Conversation History
             </div>
             <span style="font-size:0.72rem; color:var(--text-dim);">newest first</span>
@@ -319,12 +431,14 @@
 ════════════════════════════════════════════ -->
 <script src="{{ url_for('static', filename='js/sentence_mode.js') }}"></script>
 <script>
+// Hamburger
+document.getElementById('hamburger')?.addEventListener('click', () => {
+  document.getElementById('mobile-nav').classList.toggle('hidden');
+});
+
 // Navbar scroll effect
 window.addEventListener('scroll', () => {
-  document.getElementById('sm-navbar').style.boxShadow =
-    window.scrollY > 10
-      ? '0 2px 40px rgba(0,0,0,0.6)'
-      : '0 1px 30px rgba(0,0,0,0.4)';
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
 });
 
 // Sync status text dots with camera active state

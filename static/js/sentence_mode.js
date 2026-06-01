@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindDebugToggle();
   checkModelStatus();
   setInterval(checkModelStatus, 12000);
+  initThemeSystem();
 });
 
 /* ── Model Status ──────────────────────────────────────────── */
@@ -130,12 +131,12 @@ async function checkModelStatus() {
       const classStr = (data.classes || []).join(' · ');
       modelBanner.classList.add('ready');
       modelBannerTxt.textContent =
-        `✅ Model ready — ${data.classes.length} classes: ${classStr}  |  ` +
+        `Model ready — ${data.classes.length} classes: ${classStr}  |  ` +
         `SEQ=${data.sequence_length || 30}  THRESH=${((data.confidence_threshold || 0.80) * 100).toFixed(0)}%`;
     } else {
       modelBanner.classList.remove('ready');
       modelBannerTxt.textContent =
-        '⚠️  Model not trained. Run: collect_sentence_sequences.py → train_sentence_model.py';
+        'Model not trained. Run: collect_sentence_sequences.py → train_sentence_model.py';
     }
     modelBanner.classList.remove('hidden');
   } catch {
@@ -154,7 +155,7 @@ async function startCamera() {
     await video.play();
 
     camOverlay.classList.add('hidden');
-    startBtn.innerHTML = '<span aria-hidden="true">⏹</span> Stop Conversation';
+    startBtn.innerHTML = '<svg class="sm-btn-svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right:6px; vertical-align:middle;"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/></svg> Stop Conversation';
     startBtn.classList.add('stop');
 
     setLiveStatus(true);
@@ -186,7 +187,7 @@ function stopCamera() {
   }
   video.srcObject = null;
   camOverlay.classList.remove('hidden');
-  startBtn.innerHTML = '<span aria-hidden="true">▶</span> Start Conversation';
+  startBtn.innerHTML = '<svg class="sm-btn-svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right:6px; vertical-align:middle;"><polygon points="5 3 19 12 5 21 5 3"/></svg> Start Conversation';
   startBtn.classList.remove('stop');
   setLiveStatus(false);
   scanLine.classList.remove('active');
@@ -719,28 +720,34 @@ function initSpeechRecognition() {
 }
 
 function updateMicStatus(status) {
-  const iconEl = document.getElementById('sm-mic-status-icon');
+  const dotEl = document.getElementById('sm-mic-status-dot');
   const textEl = document.getElementById('sm-mic-status-text');
   const badgeEl = document.getElementById('sm-mic-status-badge');
-  if (!iconEl || !textEl) return;
+  if (!textEl) return;
   
   if (status === 'Listening') {
-    iconEl.textContent = '🎤';
     textEl.textContent = 'LISTENING';
+    if (dotEl) {
+      dotEl.className = 'sm-mic-status-dot listening';
+    }
     if (badgeEl) {
       badgeEl.className = 'sm-status-badge listening';
       badgeEl.style.borderColor = 'rgba(74, 222, 128, 0.3)';
     }
   } else if (status === 'Processing') {
-    iconEl.textContent = '⚡';
     textEl.textContent = 'PROCESSING';
+    if (dotEl) {
+      dotEl.className = 'sm-mic-status-dot processing';
+    }
     if (badgeEl) {
       badgeEl.className = 'sm-status-badge processing';
       badgeEl.style.borderColor = 'rgba(34, 211, 238, 0.4)';
     }
   } else {
-    iconEl.textContent = '🔴';
     textEl.textContent = 'OFFLINE';
+    if (dotEl) {
+      dotEl.className = 'sm-mic-status-dot';
+    }
     if (badgeEl) {
       badgeEl.className = 'sm-status-badge offline';
       badgeEl.style.borderColor = 'rgba(255,255,255,0.05)';
@@ -778,7 +785,7 @@ function addToLocalHistory(sentence) {
         <div class="sm-history-num">${idx + 1}</div>
         <div>
           <div class="sm-history-text">${escapeHtml(item)}</div>
-          <span class="sm-history-time">${timeStr} <span class="sm-voice-badge" style="background:rgba(34,211,238,0.1); border:1px solid rgba(34,211,238,0.25); color:#22d3ee; padding:2px 6px; border-radius:10px; font-size:0.65rem; font-weight:700; margin-left:6px;">⚡ AI Hybrid</span></span>
+          <span class="sm-history-time">${timeStr} <span class="sm-voice-badge" style="background:rgba(34,211,238,0.1); border:1px solid rgba(34,211,238,0.25); color:#22d3ee; padding:2px 6px; border-radius:10px; font-size:0.65rem; font-weight:700; margin-left:6px;">AI Hybrid</span></span>
         </div>
       </div>`;
   }).join('');
@@ -791,4 +798,46 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/* ── Theme System ──────────────────────────────────────────── */
+function initThemeSystem() {
+  const toggleBtn = $('theme-toggle-btn');
+  if (!toggleBtn) return;
+
+  const sunIcon = toggleBtn.querySelector('.sun-icon');
+  const moonIcon = toggleBtn.querySelector('.moon-icon');
+
+  const updateIcons = (isLight) => {
+    if (isLight) {
+      sunIcon?.classList.remove('hidden');
+      moonIcon?.classList.add('hidden');
+    } else {
+      sunIcon?.classList.add('hidden');
+      moonIcon?.classList.remove('hidden');
+    }
+  };
+
+  // Initial state setup
+  const isLight = document.body.classList.contains('light-theme');
+  updateIcons(isLight);
+
+  toggleBtn.addEventListener('click', () => {
+    const turnLight = !document.body.classList.contains('light-theme');
+    if (turnLight) {
+      document.documentElement.classList.add('light-theme');
+      document.body.classList.add('light-theme');
+      localStorage.setItem('signova_theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+      document.body.classList.remove('light-theme');
+      localStorage.setItem('signova_theme', 'dark');
+    }
+    updateIcons(turnLight);
+  });
+
+  // Add theme-ready class to prevent transition flash on initial load
+  setTimeout(() => {
+    document.body.classList.add('theme-ready');
+  }, 150);
 }

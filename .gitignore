@@ -9,3 +9,25 @@ venv/
 
 # Optional
 users.db
+
+# Media Files
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Feedback Videos
+static/assets/FeedbackVideos/
+
+# Large datasets
+Data/
+
+# Python cache
+__pycache__/
+
+# Virtual environment
+.venv/
+.vscode/
+
+# Environment variables
+.env

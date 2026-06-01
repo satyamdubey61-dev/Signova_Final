@@ -5,6 +5,7 @@
    ============================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
+  initThemeSystem();
   const chatForm = document.getElementById("chat-input-form");
   const userInput = document.getElementById("chat-user-input");
   const historyContainer = document.getElementById("chat-history-container");
@@ -243,3 +244,45 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+/* ── Theme System ──────────────────────────────────────────── */
+function initThemeSystem() {
+  const toggleBtn = document.getElementById('theme-toggle-btn');
+  if (!toggleBtn) return;
+
+  const sunIcon = toggleBtn.querySelector('.sun-icon');
+  const moonIcon = toggleBtn.querySelector('.moon-icon');
+
+  const updateIcons = (isLight) => {
+    if (isLight) {
+      sunIcon?.classList.remove('hidden');
+      moonIcon?.classList.add('hidden');
+    } else {
+      sunIcon?.classList.add('hidden');
+      moonIcon?.classList.remove('hidden');
+    }
+  };
+
+  // Initial state setup
+  const isLight = document.body.classList.contains('light-theme');
+  updateIcons(isLight);
+
+  toggleBtn.addEventListener('click', () => {
+    const turnLight = !document.body.classList.contains('light-theme');
+    if (turnLight) {
+      document.documentElement.classList.add('light-theme');
+      document.body.classList.add('light-theme');
+      localStorage.setItem('signova_theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+      document.body.classList.remove('light-theme');
+      localStorage.setItem('signova_theme', 'dark');
+    }
+    updateIcons(turnLight);
+  });
+
+  // Add theme-ready class to prevent transition flash on initial load
+  setTimeout(() => {
+    document.body.classList.add('theme-ready');
+  }, 150);
+}

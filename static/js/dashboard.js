@@ -15,6 +15,7 @@ window.resetPracticeStreak = function() {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
+  initThemeSystem();
   // --- Real Usage Practice Streak Tracking ---
   const todayStr = new Date().toLocaleDateString('en-CA');
   let practiceDays = [];
@@ -70,35 +71,35 @@ document.addEventListener("DOMContentLoaded", async () => {
       id: "first_step",
       name: "First Steps",
       desc: "Practice your first gesture or take your first quiz evaluation.",
-      icon: "🌱",
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 7.5 8.5 4 4 4"/><path d="M12 12C12 7.5 15.5 4 20 4"/></svg>`,
       condition: () => (quizzes > 0 || cards > 4)
     },
     {
       id: "quiz_champ",
       name: "Quiz Scholar",
       desc: "Complete a gamified quiz session with an accuracy average of 80% or higher.",
-      icon: "🎓",
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>`,
       condition: () => (quizzes > 0 && accuracy >= 80.0)
     },
     {
       id: "gesture_novice",
       name: "Gesture Novice",
       desc: "Successfully master 5 or more distinct manual ISL gestures.",
-      icon: "🤟",
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8M8 14.5V11a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v9a7 7 0 0 0 14 0v-5a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2"/></svg>`,
       condition: () => (cards >= 5)
     },
     {
       id: "velocity_master",
       name: "Accuracy Enthusiast",
       desc: "Maintain an overall average accuracy metric above 92%.",
-      icon: "⚡",
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
       condition: () => (accuracy >= 92.0)
     },
     {
       id: "absolute_maestro",
       name: "Absolute Maestro",
       desc: "Master 8+ gestures, complete 3+ quizzes, and maintain 94% accuracy.",
-      icon: "🏆",
+      icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34M12 2a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4 4 4 0 0 1-4-4V6a4 4 0 0 1 4-4z"/></svg>`,
       condition: () => (cards >= 8 && quizzes >= 3 && accuracy >= 94.0)
     }
   ];
@@ -163,7 +164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Seed trendline values using current accuracy
   const chartData = [85, 88, 90, 89, 93, 91, accuracy];
 
-  new Chart(ctx, {
+  window.accuracyChartInstance = new Chart(ctx, {
     type: "line",
     data: {
       labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -200,4 +201,68 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   });
+
+  updateChartTheme();
 });
+
+/* ── Dynamic Chart.js Theme Adaptation ─────────────────────── */
+window.updateChartTheme = function() {
+  if (!window.accuracyChartInstance) return;
+  const isLight = document.body.classList.contains('light-theme');
+  const gridColor = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.03)";
+  const tickColor = isLight ? "#334155" : "#64748b";
+  
+  window.accuracyChartInstance.options.scales.x.grid.color = gridColor;
+  window.accuracyChartInstance.options.scales.x.ticks.color = tickColor;
+  window.accuracyChartInstance.options.scales.y.grid.color = gridColor;
+  window.accuracyChartInstance.options.scales.y.ticks.color = tickColor;
+  
+  window.accuracyChartInstance.update();
+};
+
+/* ── Theme System ──────────────────────────────────────────── */
+function initThemeSystem() {
+  const toggleBtn = document.getElementById('theme-toggle-btn');
+  if (!toggleBtn) return;
+
+  const sunIcon = toggleBtn.querySelector('.sun-icon');
+  const moonIcon = toggleBtn.querySelector('.moon-icon');
+
+  const updateIcons = (isLight) => {
+    if (isLight) {
+      sunIcon?.classList.remove('hidden');
+      moonIcon?.classList.add('hidden');
+    } else {
+      sunIcon?.classList.add('hidden');
+      moonIcon?.classList.remove('hidden');
+    }
+  };
+
+  // Initial state setup
+  const isLight = document.body.classList.contains('light-theme');
+  updateIcons(isLight);
+
+  toggleBtn.addEventListener('click', () => {
+    const turnLight = !document.body.classList.contains('light-theme');
+    if (turnLight) {
+      document.documentElement.classList.add('light-theme');
+      document.body.classList.add('light-theme');
+      localStorage.setItem('signova_theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+      document.body.classList.remove('light-theme');
+      localStorage.setItem('signova_theme', 'dark');
+    }
+    updateIcons(turnLight);
+    
+    // Trigger Chart theme updates dynamically
+    if (typeof window.updateChartTheme === 'function') {
+      window.updateChartTheme();
+    }
+  });
+
+  // Add theme-ready class to prevent transition flash on initial load
+  setTimeout(() => {
+    document.body.classList.add('theme-ready');
+  }, 150);
+}

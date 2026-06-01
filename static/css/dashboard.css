@@ -272,3 +272,43 @@
   color: var(--orange);
   border: 1px solid rgba(249, 115, 22, 0.2);
 }
+
+/* === LIGHT THEME OVERRIDES FOR DASHBOARD === */
+body.light-theme .dashboard-body {
+  background: var(--bg);
+}
+body.light-theme .stat-value {
+  color: var(--text);
+}
+body.light-theme .badge-item {
+  background: rgba(15, 23, 42, 0.01);
+  border-color: var(--border);
+}
+body.light-theme .badge-item.unlocked {
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+body.light-theme .badge-icon {
+  background: rgba(15, 23, 42, 0.04);
+}
+body.light-theme .badge-item.unlocked .badge-icon {
+  background: rgba(34, 197, 94, 0.12);
+}
+body.light-theme .badge-item.unlocked .badge-info h4 {
+  color: var(--text);
+}
+body.light-theme .timeline-container::before {
+  background: var(--border);
+}
+body.light-theme .timeline-dot {
+  background: #eef2f7;
+  border-color: #f5f7fb;
+}
+body.light-theme .timeline-item.completed .timeline-dot {
+  background: var(--green);
+}
+body.light-theme .timeline-content {
+  background: rgba(15, 23, 42, 0.015);
+  border-color: var(--border);
+}
+

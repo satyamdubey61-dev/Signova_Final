@@ -680,3 +680,98 @@
   color: var(--text-dim);
   line-height: 1.5;
 }
+
+/* === LIGHT THEME OVERRIDES FOR LEARN HUB === */
+body.light-theme .learn-hub-body {
+  background: var(--bg);
+}
+body.light-theme .onboarding-panel {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(238, 242, 247, 0.9));
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+body.light-theme .category-badge {
+  background: rgba(249, 115, 22, 0.08);
+  border-color: rgba(249, 115, 22, 0.2);
+}
+body.light-theme .tabs-nav {
+  background: #eef2f7;
+  border-color: var(--border);
+}
+body.light-theme .tab-btn {
+  color: var(--text-dim);
+}
+body.light-theme .tab-btn:hover {
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.04);
+}
+body.light-theme .tab-btn.active {
+  color: var(--text);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+body.light-theme .card-glow {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+body.light-theme .card-glow:hover {
+  border-color: rgba(249, 115, 22, 0.3);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06), 0 0 15px rgba(249, 115, 22, 0.04);
+}
+body.light-theme .letter-title {
+  background: linear-gradient(135deg, var(--text), var(--text-dim));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+body.light-theme .quiz-final-score {
+  background: rgba(15, 23, 42, 0.015);
+  border-color: var(--border);
+}
+body.light-theme .quiz-opt-btn {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text);
+}
+body.light-theme .quiz-opt-btn:hover {
+  background: rgba(15, 23, 42, 0.025);
+}
+body.light-theme .practice-video-viewport {
+  background: #eef2f7;
+  border-color: var(--border);
+}
+body.light-theme .practice-overlay-card {
+  background: rgba(245, 247, 251, 0.95);
+}
+body.light-theme .practice-target-hud {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border);
+}
+body.light-theme .chip-btn {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+body.light-theme .chip-btn:hover {
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--text);
+}
+body.light-theme .chip-btn.selected {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: var(--orange);
+  color: var(--orange);
+}
+body.light-theme .modal-visual-container {
+  background: #eef2f7;
+  border-color: var(--border);
+}
+body.light-theme .playback-controls {
+  background: #ffffff;
+  border-top-color: var(--border);
+}
+body.light-theme .modal-instructions-block {
+  background: rgba(15, 23, 42, 0.015);
+  border-color: var(--border);
+}
+

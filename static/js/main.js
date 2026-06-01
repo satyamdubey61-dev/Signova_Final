@@ -630,6 +630,7 @@ const Auth = {
 // DOM READY — Wire events
 // ====================================================
 document.addEventListener('DOMContentLoaded', () => {
+    initThemeSystem();
     // --- Track Practice Streak Activity ---
     const todayStr = new Date().toLocaleDateString('en-CA');
     let practiceDays = [];
@@ -811,7 +812,7 @@ document.addEventListener('DOMContentLoaded', () => {
         State.lock('voiceToSign');
         State.playback.listening = true;
         const btn = $('voice-to-sign-button');
-        if (btn) { btn.textContent = '🎙️ Listening...'; btn.disabled = true; btn.classList.add('listening'); }
+        if (btn) { btn.textContent = 'Listening...'; btn.disabled = true; btn.classList.add('listening'); }
 
         const rec = new SR();
         rec.lang = 'en-IN'; rec.interimResults = false; rec.maxAlternatives = 1;
@@ -983,3 +984,45 @@ document.addEventListener('DOMContentLoaded', () => {
         a.addEventListener('click', function (e) { const t = this.getAttribute('href'); if (t === '#') return; e.preventDefault(); document.querySelector(t)?.scrollIntoView({ behavior: 'smooth' }); });
     });
 });
+
+/* ── Theme System ──────────────────────────────────────────── */
+function initThemeSystem() {
+    const toggleBtn = document.getElementById('theme-toggle-btn');
+    if (!toggleBtn) return;
+
+    const sunIcon = toggleBtn.querySelector('.sun-icon');
+    const moonIcon = toggleBtn.querySelector('.moon-icon');
+
+    const updateIcons = (isLight) => {
+        if (isLight) {
+            sunIcon?.classList.remove('hidden');
+            moonIcon?.classList.add('hidden');
+        } else {
+            sunIcon?.classList.add('hidden');
+            moonIcon?.classList.remove('hidden');
+        }
+    };
+
+    // Initial state setup
+    const isLight = document.body.classList.contains('light-theme');
+    updateIcons(isLight);
+
+    toggleBtn.addEventListener('click', () => {
+        const turnLight = !document.body.classList.contains('light-theme');
+        if (turnLight) {
+            document.documentElement.classList.add('light-theme');
+            document.body.classList.add('light-theme');
+            localStorage.setItem('signova_theme', 'light');
+        } else {
+            document.documentElement.classList.remove('light-theme');
+            document.body.classList.remove('light-theme');
+            localStorage.setItem('signova_theme', 'dark');
+        }
+        updateIcons(turnLight);
+    });
+
+    // Add theme-ready class to prevent transition flash on initial load
+    setTimeout(() => {
+        document.body.classList.add('theme-ready');
+    }, 150);
+}
